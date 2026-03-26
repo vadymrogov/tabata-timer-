@@ -16,6 +16,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { WheelPicker } from "@/components/WheelPicker";
 import Colors from "@/constants/colors";
+import { useI18n } from "@/context/I18nContext";
 import { CustomConfig, SimpleConfig, TimerMode, useTimer } from "@/context/TimerContext";
 import { PresetWorkout, SavedWorkout, useWorkouts } from "@/context/WorkoutsContext";
 
@@ -124,6 +125,7 @@ function ModeToggle({
   mode: TimerMode;
   onSelect: (m: TimerMode) => void;
 }) {
+  const { t } = useI18n();
   return (
     <View style={modeStyles.container}>
       {(["simple", "custom"] as TimerMode[]).map((m) => (
@@ -138,7 +140,7 @@ function ModeToggle({
           <Text
             style={[modeStyles.tabText, mode === m && modeStyles.tabTextActive]}
           >
-            {m === "simple" ? "Simple" : "Custom"}
+            {m === "simple" ? t("simple") : t("custom")}
           </Text>
         </Pressable>
       ))}
@@ -147,6 +149,7 @@ function ModeToggle({
 }
 
 function SummaryCard({ config }: { config: SimpleConfig }) {
+  const { t } = useI18n();
   const totalSecs =
     config.prepareDuration +
     config.workDuration * config.cycles +
@@ -160,20 +163,20 @@ function SummaryCard({ config }: { config: SimpleConfig }) {
       <View style={summaryStyles.item}>
         <View style={[summaryStyles.dot, { backgroundColor: Colors.work }]} />
         <Text style={summaryStyles.text}>
-          {config.cycles} × {config.workDuration}s work
+          {config.cycles} × {config.workDuration}s {t("work").toLowerCase()}
         </Text>
       </View>
       <View style={summaryStyles.item}>
         <View style={[summaryStyles.dot, { backgroundColor: Colors.rest }]} />
         <Text style={summaryStyles.text}>
-          {config.cycles - 1} × {config.restDuration}s rest
+          {config.cycles - 1} × {config.restDuration}s {t("rest").toLowerCase()}
         </Text>
       </View>
       <View style={summaryStyles.divider} />
       <View style={summaryStyles.item}>
         <Feather name="clock" size={12} color={Colors.accent} />
         <Text style={[summaryStyles.text, { color: Colors.accent }]}>
-          ~{durStr.trim()} total
+          ~{durStr.trim()} {t("statTotal").toLowerCase()}
         </Text>
       </View>
     </View>
@@ -281,6 +284,7 @@ function SavedCard({
 
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
+  const { t } = useI18n();
   const { mode, setMode, simpleConfig, setSimpleConfig, setCustomConfig, reset } = useTimer();
   const { presets, savedWorkouts, deleteWorkout, setEditingWorkoutId } = useWorkouts();
   const [local, setLocal] = useState<SimpleConfig>(simpleConfig);
@@ -310,8 +314,8 @@ export default function SettingsScreen() {
     setSimpleConfig(local);
     setMode("simple");
     reset();
-    showToast("✓ Workout set — go to Timer to start");
-  }, [local, setSimpleConfig, setMode, reset, showToast]);
+    showToast(t("toastSet"));
+  }, [local, setSimpleConfig, setMode, reset, showToast, t]);
 
   const loadPreset = useCallback(
     (p: PresetWorkout) => {
@@ -321,10 +325,10 @@ export default function SettingsScreen() {
         setLocal(p.simpleConfig);
         setMode("simple");
         reset();
-        showToast(`✓ "${p.name}" loaded — go to Timer to start`);
+        showToast(t("toastLoaded", { name: p.name }));
       }
     },
-    [setSimpleConfig, setMode, reset, showToast]
+    [setSimpleConfig, setMode, reset, showToast, t]
   );
 
   const loadSavedWorkout = useCallback(
@@ -340,33 +344,33 @@ export default function SettingsScreen() {
         setMode("simple");
         reset();
       }
-      showToast(`✓ "${w.name}" loaded — go to Timer to start`);
+      showToast(t("toastLoaded", { name: w.name }));
     },
-    [setCustomConfig, setSimpleConfig, setMode, reset, showToast]
+    [setCustomConfig, setSimpleConfig, setMode, reset, showToast, t]
   );
 
   const handleDeleteWorkout = useCallback(
     (id: string) => {
       if (Platform.OS === "web") {
-        if (window.confirm("Delete workout? This cannot be undone.")) {
+        if (window.confirm(t("deleteConfirmWeb"))) {
           deleteWorkout(id);
         }
         return;
       }
       Alert.alert(
-        "Delete workout?",
-        "This cannot be undone.",
+        t("deleteTitle"),
+        t("deleteMsg"),
         [
-          { text: "Cancel", style: "cancel" },
+          { text: t("cancel"), style: "cancel" },
           {
-            text: "Delete",
+            text: t("confirmDelete"),
             style: "destructive",
             onPress: () => deleteWorkout(id),
           },
         ]
       );
     },
-    [deleteWorkout]
+    [deleteWorkout, t]
   );
 
   const handleEditWorkout = useCallback(
@@ -404,7 +408,7 @@ export default function SettingsScreen() {
         keyboardShouldPersistTaps="handled"
         nestedScrollEnabled
       >
-        <Text style={styles.title}>Configure</Text>
+        <Text style={styles.title}>{t("configure")}</Text>
 
         <ModeToggle
           mode={mode}
@@ -420,7 +424,7 @@ export default function SettingsScreen() {
             <View style={styles.field}>
               <View style={styles.fieldHeader}>
                 <View style={[styles.colorBar, { backgroundColor: Colors.accent }]} />
-                <Text style={styles.fieldLabel}>Cycles</Text>
+                <Text style={styles.fieldLabel}>{t("cycles")}</Text>
                 <Text style={[styles.fieldValue, { color: Colors.accent }]}>
                   {local.cycles}
                 </Text>
@@ -441,7 +445,7 @@ export default function SettingsScreen() {
             <View style={styles.field}>
               <View style={styles.fieldHeader}>
                 <View style={[styles.colorBar, { backgroundColor: Colors.prepare }]} />
-                <Text style={styles.fieldLabel}>Prepare</Text>
+                <Text style={styles.fieldLabel}>{t("prepare")}</Text>
                 <Text style={[styles.fieldValue, { color: Colors.prepare }]}>
                   {formatPrepare(local.prepareDuration)}
                 </Text>
@@ -460,7 +464,7 @@ export default function SettingsScreen() {
 
             {/* Work duration */}
             <DurationWheel
-              label="Work"
+              label={t("work")}
               totalSeconds={local.workDuration}
               onChange={(v) => update({ workDuration: Math.max(1, v) })}
               color={Colors.work}
@@ -468,7 +472,7 @@ export default function SettingsScreen() {
 
             {/* Rest duration */}
             <DurationWheel
-              label="Rest"
+              label={t("rest")}
               totalSeconds={local.restDuration}
               onChange={(v) => update({ restDuration: Math.max(1, v) })}
               color={Colors.rest}
@@ -477,13 +481,13 @@ export default function SettingsScreen() {
             <SummaryCard config={local} />
 
             <Pressable onPress={handleSelect} style={styles.selectBtn}>
-              <Text style={styles.selectBtnText}>Select</Text>
+              <Text style={styles.selectBtnText}>{t("select")}</Text>
             </Pressable>
           </View>
         ) : (
           <View style={styles.section}>
             <Text style={styles.customHint}>
-              Design each interval independently with custom labels, types and durations.
+              {t("customHint")}
             </Text>
             <Pressable
               style={styles.customBtn}
@@ -491,7 +495,7 @@ export default function SettingsScreen() {
             >
               <View style={styles.customBtnInner}>
                 <Ionicons name="construct-outline" size={20} color={Colors.accent} />
-                <Text style={styles.customBtnText}>Edit Custom Intervals</Text>
+                <Text style={styles.customBtnText}>{t("editCustom")}</Text>
               </View>
               <Feather name="chevron-right" size={18} color={Colors.textMuted} />
             </Pressable>
@@ -501,7 +505,7 @@ export default function SettingsScreen() {
         {/* ─── Saved Workouts ─── */}
         {savedWorkouts.length > 0 && (
           <View style={styles.workoutsSection}>
-            <Text style={styles.sectionHeader}>Saved Workouts</Text>
+            <Text style={styles.sectionHeader}>{t("savedWorkouts")}</Text>
             {savedWorkouts.map((w) => (
               <SavedCard
                 key={w.id}
@@ -516,8 +520,8 @@ export default function SettingsScreen() {
 
         {/* ─── Presets ─── */}
         <View style={styles.workoutsSection}>
-          <Text style={styles.sectionHeader}>Workout Presets</Text>
-          <Text style={styles.sectionSub}>Tap any preset to load it instantly</Text>
+          <Text style={styles.sectionHeader}>{t("workoutPresets")}</Text>
+          <Text style={styles.sectionSub}>{t("presetsSubtitle")}</Text>
           {presets.map((p) => (
             <PresetCard key={p.id} preset={p} onLoad={loadPreset} />
           ))}

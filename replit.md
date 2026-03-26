@@ -42,29 +42,33 @@ artifacts-monorepo/
 - **Simple Mode**: Set work duration, rest duration, and number of cycles using Apple-style rolling wheel pickers
 - **Custom Mode**: Design each interval individually (label, type, duration) with reorderable cards
 - **Timer Screen**: Circular progress ring with interval progress + total workout progress bar
-- **Sounds**: Countdown beeps (3,2,1), work/rest interval sounds, completion fanfare
+- **Sounds**: Countdown beeps (3,2,1), work/rest interval sounds, completion fanfare; sound toggle persisted to AsyncStorage
 - **Haptics**: Interval transitions and button presses
 - **Stats**: Round counter, elapsed time, total duration
+- **Saved Workouts**: Save/update/delete workouts; 10 built-in presets
+- **Internationalization (i18n)**: Full English/Spanish support via `I18nContext`; language persisted to AsyncStorage; language picker accessible from account icon in timer header
 
 ### Key Files
-- `app/(tabs)/index.tsx` — Main timer screen with progress bar, sounds
+- `app/(tabs)/index.tsx` — Main timer screen with progress bar, sounds, account/language modal
 - `app/(tabs)/settings.tsx` — Simple/Custom mode toggle + Apple wheel pickers
 - `app/custom-config.tsx` — Custom interval editor
-- `context/TimerContext.tsx` — Timer state, build intervals, tick logic
+- `context/TimerContext.tsx` — Timer state, build intervals, tick logic, sound toggle
+- `context/WorkoutsContext.tsx` — Saved workouts, presets, edit mode
+- `context/I18nContext.tsx` — i18n translations (EN/ES), language persistence
 - `components/CircularProgress.tsx` — Animated SVG ring timer
-- `components/WorkoutProgressBar.tsx` — Total workout progress bar
+- `components/WorkoutTimeline.tsx` — Segmented workout timeline bar with animated marker
 - `components/WheelPicker.tsx` — Apple-style rolling drum wheel picker
 - `components/TimerControls.tsx` — Play/pause/skip/reset buttons
 - `components/IntervalQueue.tsx` — Horizontal scrolling interval preview
-- `components/StatsBar.tsx` — Round / elapsed / total stats
-- `hooks/useSounds.ts` — expo-av sound playback
+- `components/StatsBar.tsx` — Round / elapsed / total stats (i18n-aware)
+- `hooks/useSounds.ts` — expo-av sound playback (respects soundEnabled flag)
 - `assets/sounds/` — Generated WAV audio files (tick, work, rest, complete)
 - `constants/colors.ts` — Dark theme colors (orange work, teal rest, amber prepare)
 
 ### Packages Used
 - expo-av — Audio playback
 - expo-haptics — Haptic feedback
-- @react-native-async-storage/async-storage — Persistent settings
+- @react-native-async-storage/async-storage — Persistent settings, language, saved workouts
 - react-native-svg — Circular progress ring
 - react-native-reanimated — Animations
 

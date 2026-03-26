@@ -2,6 +2,7 @@ import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 import Colors from "@/constants/colors";
+import { useI18n } from "@/context/I18nContext";
 
 interface Props {
   currentCycle: number;
@@ -22,13 +23,14 @@ export function StatsBar({
   totalDuration,
   elapsed,
 }: Props) {
+  const { t } = useI18n();
   return (
     <View style={styles.container}>
-      <Stat label="Round" value={`${currentCycle} / ${totalCycles}`} />
+      <Stat label={t("statRound")} value={`${currentCycle} / ${totalCycles}`} />
       <Divider />
-      <Stat label="Elapsed" value={formatTime(elapsed)} />
+      <Stat label={t("statElapsed")} value={formatTime(elapsed)} />
       <Divider />
-      <Stat label="Total" value={formatTime(totalDuration)} />
+      <Stat label={t("statTotal")} value={formatTime(totalDuration)} />
     </View>
   );
 }

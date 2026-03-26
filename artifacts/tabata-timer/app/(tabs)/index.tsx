@@ -1,6 +1,7 @@
 import * as Haptics from "expo-haptics";
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -26,14 +27,15 @@ import { StatsBar } from "@/components/StatsBar";
 import { TimerControls } from "@/components/TimerControls";
 import { WorkoutTimeline } from "@/components/WorkoutTimeline";
 import Colors from "@/constants/colors";
+import { useI18n } from "@/context/I18nContext";
 import { useTimer } from "@/context/TimerContext";
 import { useSounds } from "@/hooks/useSounds";
 
-function getIntervalLabel(type: string) {
+function getIntervalLabel(type: string, t: (k: string) => string) {
   switch (type) {
-    case "work": return "WORK";
-    case "rest": return "REST";
-    case "prepare": return "READY";
+    case "work": return t("labelWork");
+    case "rest": return t("labelRest");
+    case "prepare": return t("labelReady");
     default: return "";
   }
 }
@@ -48,6 +50,7 @@ function getIntervalColor(type: string) {
 }
 
 function CompleteBanner() {
+  const { t } = useI18n();
   const scale = useSharedValue(0.8);
 
   useEffect(() => {
@@ -63,8 +66,8 @@ function CompleteBanner() {
     <Animated.View entering={FadeIn.duration(400)} style={styles.completeBanner}>
       <Animated.View style={[styles.completeBadge, style]}>
         <Text style={styles.completeEmoji}>🏆</Text>
-        <Text style={styles.completeTitle}>Complete!</Text>
-        <Text style={styles.completeSub}>You crushed it.</Text>
+        <Text style={styles.completeTitle}>{t("complete")}</Text>
+        <Text style={styles.completeSub}>{t("crushedIt")}</Text>
       </Animated.View>
     </Animated.View>
   );
@@ -72,6 +75,8 @@ function CompleteBanner() {
 
 export default function TimerScreen() {
   const insets = useSafeAreaInsets();
+  const { t, language, setLanguage } = useI18n();
+  const [accountModalVisible, setAccountModalVisible] = useState(false);
   const {
     timerState,
     currentIntervals,
@@ -158,13 +163,69 @@ export default function TimerScreen() {
 
   return (
     <View style={[styles.root, { paddingTop: topPad, paddingBottom: bottomPad + 90 }]}>
+      {/* Account / Language Modal */}
+      <Modal
+        visible={accountModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setAccountModalVisible(false)}
+      >
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={() => setAccountModalVisible(false)}
+        >
+          <Pressable style={styles.accountModal} onPress={() => {}}>
+            <View style={styles.accountModalHeader}>
+              <Ionicons name="person-circle-outline" size={28} color={Colors.text} />
+              <Text style={styles.accountModalTitle}>{t("account")}</Text>
+            </View>
+            <View style={styles.accountDivider} />
+            <Text style={styles.accountSectionLabel}>{t("language")}</Text>
+            <Pressable
+              style={styles.langOption}
+              onPress={() => {
+                setLanguage("en");
+                Haptics.selectionAsync();
+              }}
+            >
+              <Text style={[styles.langOptionText, language === "en" && styles.langOptionActive]}>
+                {t("english")}
+              </Text>
+              {language === "en" && (
+                <Ionicons name="checkmark" size={20} color={Colors.accent} />
+              )}
+            </Pressable>
+            <Pressable
+              style={styles.langOption}
+              onPress={() => {
+                setLanguage("es");
+                Haptics.selectionAsync();
+              }}
+            >
+              <Text style={[styles.langOptionText, language === "es" && styles.langOptionActive]}>
+                {t("spanish")}
+              </Text>
+              {language === "es" && (
+                <Ionicons name="checkmark" size={20} color={Colors.accent} />
+              )}
+            </Pressable>
+            <Pressable
+              style={styles.accountCloseBtn}
+              onPress={() => setAccountModalVisible(false)}
+            >
+              <Text style={styles.accountCloseBtnText}>{t("cancel")}</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
       <ScrollView
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.appTitle}>Tábata</Text>
+          <Text style={styles.appTitle}>{t("appTitle")}</Text>
           <View style={styles.headerRight}>
             {!isIdle && !isComplete && currentInterval && (
               <Animated.Text
@@ -176,7 +237,7 @@ export default function TimerScreen() {
                   { color: getIntervalColor(intervalType) },
                 ]}
               >
-                {getIntervalLabel(intervalType)}
+                {getIntervalLabel(intervalType, t)}
               </Animated.Text>
             )}
             <Pressable
@@ -188,6 +249,17 @@ export default function TimerScreen() {
                 name={soundEnabled ? "volume-high" : "volume-mute"}
                 size={22}
                 color={soundEnabled ? Colors.textSecondary : Colors.textMuted}
+              />
+            </Pressable>
+            <Pressable
+              onPress={() => setAccountModalVisible(true)}
+              style={styles.muteBtn}
+              hitSlop={10}
+            >
+              <Ionicons
+                name="person-circle-outline"
+                size={24}
+                color={Colors.textSecondary}
               />
             </Pressable>
           </View>
@@ -213,7 +285,7 @@ export default function TimerScreen() {
           </Animated.Text>
         )}
         {isIdle && (
-          <Text style={styles.idleHint}>Press play to start</Text>
+          <Text style={styles.idleHint}>{t("pressToStart")}</Text>
         )}
 
         {/* Main circle */}
@@ -296,6 +368,77 @@ const styles = StyleSheet.create({
   },
   muteBtn: {
     padding: 4,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.65)",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 32,
+  },
+  accountModal: {
+    width: "100%",
+    backgroundColor: "#1C1C1E",
+    borderRadius: 20,
+    paddingVertical: 24,
+    paddingHorizontal: 24,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.08)",
+  },
+  accountModalHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginBottom: 16,
+  },
+  accountModalTitle: {
+    fontSize: 20,
+    fontFamily: "Inter_700Bold",
+    color: Colors.text,
+  },
+  accountDivider: {
+    height: 1,
+    backgroundColor: "rgba(255,255,255,0.08)",
+    marginBottom: 16,
+  },
+  accountSectionLabel: {
+    fontSize: 11,
+    fontFamily: "Inter_600SemiBold",
+    color: Colors.textMuted,
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+    marginBottom: 8,
+  },
+  langOption: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.04)",
+    marginBottom: 8,
+  },
+  langOptionText: {
+    fontSize: 16,
+    fontFamily: "Inter_500Medium",
+    color: Colors.textSecondary,
+  },
+  langOptionActive: {
+    color: Colors.text,
+    fontFamily: "Inter_600SemiBold",
+  },
+  accountCloseBtn: {
+    marginTop: 8,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: "rgba(255,255,255,0.06)",
+    alignItems: "center",
+  },
+  accountCloseBtnText: {
+    fontSize: 15,
+    fontFamily: "Inter_600SemiBold",
+    color: Colors.textSecondary,
   },
   intervalBadge: {
     fontSize: 12,

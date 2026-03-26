@@ -21,6 +21,7 @@ import Animated, {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import Colors from "@/constants/colors";
+import { useI18n } from "@/context/I18nContext";
 import {
   CustomConfig,
   Interval,
@@ -80,6 +81,7 @@ function IntervalCard({
   isLast,
 }: IntervalCardProps) {
   const [expanded, setExpanded] = useState(false);
+  const { t } = useI18n();
   const colors = getTypeColors(interval.type);
   const types: IntervalType[] = ["work", "rest"];
 
@@ -155,11 +157,11 @@ function IntervalCard({
         <View style={styles.cardBody}>
           {/* Label */}
           <View style={styles.field}>
-            <Text style={styles.fieldLabel}>Label</Text>
+            <Text style={styles.fieldLabel}>{t("fieldLabel")}</Text>
             <TextInput
               style={styles.input}
               value={interval.label}
-              onChangeText={(t) => onUpdate(interval.id, { label: t })}
+              onChangeText={(v) => onUpdate(interval.id, { label: v })}
               placeholderTextColor={Colors.textMuted}
               selectionColor={Colors.accent}
             />
@@ -167,17 +169,17 @@ function IntervalCard({
 
           {/* Type */}
           <View style={styles.field}>
-            <Text style={styles.fieldLabel}>Type</Text>
+            <Text style={styles.fieldLabel}>{t("fieldType")}</Text>
             <View style={styles.typeRow}>
-              {types.map((t) => {
-                const tc = getTypeColors(t);
-                const active = interval.type === t;
+              {types.map((tp) => {
+                const tc = getTypeColors(tp);
+                const active = interval.type === tp;
                 return (
                   <Pressable
-                    key={t}
+                    key={tp}
                     onPress={() => {
                       Haptics.selectionAsync();
-                      onUpdate(interval.id, { type: t });
+                      onUpdate(interval.id, { type: tp });
                     }}
                     style={[
                       styles.typeChip,
@@ -193,7 +195,7 @@ function IntervalCard({
                         active && { color: tc.text },
                       ]}
                     >
-                      {t.charAt(0).toUpperCase() + t.slice(1)}
+                      {tp === "work" ? t("work") : t("rest")}
                     </Text>
                   </Pressable>
                 );
@@ -203,7 +205,7 @@ function IntervalCard({
 
           {/* Duration */}
           <View style={styles.field}>
-            <Text style={styles.fieldLabel}>Duration</Text>
+            <Text style={styles.fieldLabel}>{t("fieldDuration")}</Text>
             <View style={styles.durationRow}>
               <Pressable
                 onPress={() => adjustDuration(-5)}
@@ -246,7 +248,7 @@ function IntervalCard({
             style={styles.deleteBtn}
           >
             <Feather name="trash-2" size={15} color="#FF453A" />
-            <Text style={styles.deleteBtnText}>Remove Interval</Text>
+            <Text style={styles.deleteBtnText}>{t("removeInterval")}</Text>
           </Pressable>
         </View>
       )}
@@ -256,6 +258,7 @@ function IntervalCard({
 
 export default function CustomConfigScreen() {
   const insets = useSafeAreaInsets();
+  const { t } = useI18n();
   const { customConfig, setCustomConfig, reset } = useTimer();
   const { saveWorkout, updateWorkout, editingWorkoutId, setEditingWorkoutId, savedWorkouts } = useWorkouts();
   const editingWorkout = editingWorkoutId
@@ -286,11 +289,11 @@ export default function CustomConfigScreen() {
   const handleSaveWorkout = async () => {
     const name = workoutName.trim();
     if (!name) {
-      Alert.alert("Name required", "Give your workout a name to save it.");
+      Alert.alert(t("nameRequired"), t("nameRequiredMsg"));
       return;
     }
     if (intervals.length === 0) {
-      Alert.alert("No intervals", "Add at least one interval before saving.");
+      Alert.alert(t("noIntervals"), t("noIntervalsMsg"));
       return;
     }
     setSaving(true);
@@ -308,10 +311,10 @@ export default function CustomConfigScreen() {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         setSaveModalVisible(false);
         setWorkoutName("");
-        Alert.alert("Saved!", `"${name}" has been saved to your workouts.`);
+        Alert.alert(t("savedBang"), t("savedMsg", { name }));
       }
     } catch {
-      Alert.alert("Error", "Failed to save workout.");
+      Alert.alert(t("error"), t("errorMsg"));
     } finally {
       setSaving(false);
     }
@@ -360,7 +363,7 @@ export default function CustomConfigScreen() {
     const newIv: Interval = {
       id: genId(),
       type,
-      label: type === "work" ? "Work" : "Rest",
+      label: type === "work" ? t("work") : t("rest"),
       duration: type === "work" ? 30 : 10,
     };
     setIntervals((prev) => {
@@ -402,16 +405,16 @@ export default function CustomConfigScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
             <Text style={styles.modalTitle}>
-              {editingWorkout ? "Update Workout" : "Save Workout"}
+              {editingWorkout ? t("updateModalTitle") : t("saveModalTitle")}
             </Text>
             <Text style={styles.modalSub}>
-              {editingWorkout ? "Edit the workout name" : "Give your workout a name"}
+              {editingWorkout ? t("editModalSub") : t("saveModalSub")}
             </Text>
             <TextInput
               style={styles.modalInput}
               value={workoutName}
               onChangeText={setWorkoutName}
-              placeholder="e.g. Morning HIIT"
+              placeholder={t("namePlaceholder")}
               placeholderTextColor={Colors.textMuted}
               selectionColor={Colors.accent}
               autoFocus
@@ -426,7 +429,7 @@ export default function CustomConfigScreen() {
                 }}
                 style={styles.modalCancel}
               >
-                <Text style={styles.modalCancelText}>Cancel</Text>
+                <Text style={styles.modalCancelText}>{t("cancel")}</Text>
               </Pressable>
               <Pressable
                 onPress={handleSaveWorkout}
@@ -434,7 +437,7 @@ export default function CustomConfigScreen() {
                 disabled={saving}
               >
                 <Text style={styles.modalSaveText}>
-                  {saving ? "Saving…" : editingWorkout ? "Update" : "Save"}
+                  {saving ? t("saving") : editingWorkout ? t("update") : t("save")}
                 </Text>
               </Pressable>
             </View>
@@ -453,7 +456,7 @@ export default function CustomConfigScreen() {
           <Feather name="arrow-left" size={22} color={Colors.text} />
         </Pressable>
         <Text style={styles.navTitle}>
-          {editingWorkout ? "Edit Workout" : "Custom Intervals"}
+          {editingWorkout ? t("editWorkout") : t("customIntervals")}
         </Text>
         <View style={{ width: 40 }} />
       </View>
@@ -465,7 +468,7 @@ export default function CustomConfigScreen() {
       >
         {/* Cycles */}
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Cycles</Text>
+          <Text style={styles.sectionLabel}>{t("cycles")}</Text>
           <View style={styles.cycleRow}>
             <Pressable onPress={() => adjustCycles(-1)} style={styles.cycleBtn}>
               <Feather name="minus" size={20} color={Colors.text} />
@@ -479,7 +482,7 @@ export default function CustomConfigScreen() {
 
         {/* Prepare */}
         <View style={styles.section}>
-          <Text style={styles.sectionLabel}>Prepare Duration</Text>
+          <Text style={styles.sectionLabel}>{t("prepareDuration")}</Text>
           <View style={styles.prepRow}>
             {[0, 3, 5, 10].map((v) => (
               <Pressable
@@ -500,7 +503,7 @@ export default function CustomConfigScreen() {
                     prepareDuration === v && styles.prepChipTextActive,
                   ]}
                 >
-                  {v === 0 ? "None" : `${v}s`}
+                  {v === 0 ? t("none") : `${v}s`}
                 </Text>
               </Pressable>
             ))}
@@ -511,14 +514,15 @@ export default function CustomConfigScreen() {
         <View style={styles.totalBox}>
           <Feather name="clock" size={14} color={Colors.textMuted} />
           <Text style={styles.totalText}>
-            {cycles} cycle{cycles > 1 ? "s" : ""} of {intervals.length} interval{intervals.length !== 1 ? "s" : ""}
+            {cycles} {cycles === 1 ? t("cycleSuffix") : t("cycleSuffixPlural")} of{" "}
+            {intervals.length} {intervals.length === 1 ? t("intervalSuffix") : t("intervalSuffixPlural")}
             {" "}= ~{totalSecs < 60 ? `${totalSecs}s` : `${(totalSecs / 60).toFixed(1)}m`}
           </Text>
         </View>
 
         {/* Intervals */}
         <View style={styles.intervalsSection}>
-          <Text style={styles.sectionLabel}>Intervals</Text>
+          <Text style={styles.sectionLabel}>{t("intervals")}</Text>
           {intervals.length === 0 ? (
             <View style={styles.empty}>
               <MaterialCommunityIcons
@@ -526,8 +530,8 @@ export default function CustomConfigScreen() {
                 size={36}
                 color={Colors.textMuted}
               />
-              <Text style={styles.emptyText}>No intervals yet</Text>
-              <Text style={styles.emptySub}>Add work and rest blocks below</Text>
+              <Text style={styles.emptyText}>{t("noIntervalsYet")}</Text>
+              <Text style={styles.emptySub}>{t("noIntervalsYetSub")}</Text>
             </View>
           ) : (
             intervals.map((iv, idx) => (
@@ -553,14 +557,14 @@ export default function CustomConfigScreen() {
             style={[styles.addBtn, styles.addBtnWork]}
           >
             <Feather name="plus" size={16} color={Colors.work} />
-            <Text style={[styles.addBtnText, { color: Colors.work }]}>Work</Text>
+            <Text style={[styles.addBtnText, { color: Colors.work }]}>{t("addWork")}</Text>
           </Pressable>
           <Pressable
             onPress={() => addInterval("rest")}
             style={[styles.addBtn, styles.addBtnRest]}
           >
             <Feather name="plus" size={16} color={Colors.rest} />
-            <Text style={[styles.addBtnText, { color: Colors.rest }]}>Rest</Text>
+            <Text style={[styles.addBtnText, { color: Colors.rest }]}>{t("addRest")}</Text>
           </Pressable>
         </View>
 
@@ -577,7 +581,7 @@ export default function CustomConfigScreen() {
         >
           <Feather name={editingWorkout ? "save" : "bookmark"} size={18} color="#fff" />
           <Text style={styles.saveWorkoutText}>
-            {editingWorkout ? "Update Workout" : "Save Workout"}
+            {editingWorkout ? t("updateWorkout") : t("saveWorkout")}
           </Text>
         </Pressable>
 
