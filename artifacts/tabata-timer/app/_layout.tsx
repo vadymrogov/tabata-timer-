@@ -15,6 +15,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { TimerProvider } from "@/context/TimerContext";
+import { WorkoutsProvider } from "@/context/WorkoutsContext";
 
 SplashScreen.preventAutoHideAsync();
 
@@ -60,9 +61,11 @@ export default function RootLayout() {
         <QueryClientProvider client={queryClient}>
           <GestureHandlerRootView style={{ flex: 1 }}>
             <KeyboardProvider>
-              <TimerProvider>
-                <RootLayoutNav />
-              </TimerProvider>
+              <WorkoutsProvider>
+                <TimerProvider>
+                  <RootLayoutNav />
+                </TimerProvider>
+              </WorkoutsProvider>
             </KeyboardProvider>
           </GestureHandlerRootView>
         </QueryClientProvider>

@@ -1,9 +1,10 @@
 import * as Haptics from "expo-haptics";
-import { Feather, Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useState } from "react";
 import {
   Alert,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -26,6 +27,7 @@ import {
   IntervalType,
   useTimer,
 } from "@/context/TimerContext";
+import { useWorkouts } from "@/context/WorkoutsContext";
 
 function genId() {
   return Date.now().toString() + Math.random().toString(36).substr(2, 6);
@@ -255,6 +257,7 @@ function IntervalCard({
 export default function CustomConfigScreen() {
   const insets = useSafeAreaInsets();
   const { customConfig, setCustomConfig, reset } = useTimer();
+  const { saveWorkout } = useWorkouts();
   const [intervals, setIntervals] = useState<Interval[]>(
     customConfig.intervals
   );
@@ -262,6 +265,9 @@ export default function CustomConfigScreen() {
   const [prepareDuration, setPrepareDuration] = useState(
     customConfig.prepareDuration
   );
+  const [saveModalVisible, setSaveModalVisible] = useState(false);
+  const [workoutName, setWorkoutName] = useState("");
+  const [saving, setSaving] = useState(false);
 
   const save = (newIntervals: Interval[], newCycles?: number, newPrep?: number) => {
     const cfg: CustomConfig = {
@@ -271,6 +277,31 @@ export default function CustomConfigScreen() {
     };
     setCustomConfig(cfg);
     reset();
+  };
+
+  const handleSaveWorkout = async () => {
+    const name = workoutName.trim();
+    if (!name) {
+      Alert.alert("Name required", "Give your workout a name to save it.");
+      return;
+    }
+    if (intervals.length === 0) {
+      Alert.alert("No intervals", "Add at least one interval before saving.");
+      return;
+    }
+    setSaving(true);
+    const cfg: CustomConfig = { cycles, prepareDuration, intervals };
+    try {
+      await saveWorkout(name, cfg);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setSaveModalVisible(false);
+      setWorkoutName("");
+      Alert.alert("Saved!", `"${name}" has been saved to your workouts.`);
+    } catch {
+      Alert.alert("Error", "Failed to save workout.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const updateInterval = (id: string, patch: Partial<Interval>) => {
@@ -348,6 +379,52 @@ export default function CustomConfigScreen() {
 
   return (
     <View style={[styles.root, { paddingBottom: bottomPad }]}>
+      {/* Save Name Modal */}
+      <Modal
+        visible={saveModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSaveModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalBox}>
+            <Text style={styles.modalTitle}>Save Workout</Text>
+            <Text style={styles.modalSub}>Give your workout a name</Text>
+            <TextInput
+              style={styles.modalInput}
+              value={workoutName}
+              onChangeText={setWorkoutName}
+              placeholder="e.g. Morning HIIT"
+              placeholderTextColor={Colors.textMuted}
+              selectionColor={Colors.accent}
+              autoFocus
+              returnKeyType="done"
+              onSubmitEditing={handleSaveWorkout}
+            />
+            <View style={styles.modalBtns}>
+              <Pressable
+                onPress={() => {
+                  setSaveModalVisible(false);
+                  setWorkoutName("");
+                }}
+                style={styles.modalCancel}
+              >
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                onPress={handleSaveWorkout}
+                style={[styles.modalSave, saving && { opacity: 0.6 }]}
+                disabled={saving}
+              >
+                <Text style={styles.modalSaveText}>
+                  {saving ? "Saving…" : "Save"}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
       <View style={[styles.navHeader, { paddingTop: topPad + 8 }]}>
         <Pressable onPress={() => router.back()} style={styles.backBtn}>
           <Feather name="arrow-left" size={22} color={Colors.text} />
@@ -461,6 +538,18 @@ export default function CustomConfigScreen() {
             <Text style={[styles.addBtnText, { color: Colors.rest }]}>Rest</Text>
           </Pressable>
         </View>
+
+        {/* Save Workout Button */}
+        <Pressable
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            setSaveModalVisible(true);
+          }}
+          style={styles.saveWorkoutBtn}
+        >
+          <Feather name="bookmark" size={18} color="#fff" />
+          <Text style={styles.saveWorkoutText}>Save Workout</Text>
+        </Pressable>
 
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -758,5 +847,90 @@ const styles = StyleSheet.create({
   addBtnText: {
     fontSize: 15,
     fontFamily: "Inter_600SemiBold",
+  },
+  saveWorkoutBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    marginTop: 16,
+    paddingVertical: 16,
+    borderRadius: 14,
+    backgroundColor: Colors.accent,
+  },
+  saveWorkoutText: {
+    fontSize: 16,
+    fontFamily: "Inter_700Bold",
+    color: "#fff",
+    letterSpacing: 0.3,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.7)",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 24,
+  },
+  modalBox: {
+    backgroundColor: Colors.surfaceElevated,
+    borderRadius: 20,
+    padding: 24,
+    width: "100%",
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontFamily: "Inter_700Bold",
+    color: Colors.text,
+    marginBottom: 4,
+  },
+  modalSub: {
+    fontSize: 14,
+    fontFamily: "Inter_400Regular",
+    color: Colors.textSecondary,
+    marginBottom: 20,
+  },
+  modalInput: {
+    backgroundColor: Colors.surface,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    fontSize: 16,
+    fontFamily: "Inter_500Medium",
+    color: Colors.text,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginBottom: 20,
+  },
+  modalBtns: {
+    flexDirection: "row",
+    gap: 12,
+  },
+  modalCancel: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: "center",
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  modalCancelText: {
+    fontSize: 15,
+    fontFamily: "Inter_600SemiBold",
+    color: Colors.textSecondary,
+  },
+  modalSave: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: "center",
+    backgroundColor: Colors.accent,
+  },
+  modalSaveText: {
+    fontSize: 15,
+    fontFamily: "Inter_700Bold",
+    color: "#fff",
   },
 });

@@ -83,17 +83,17 @@ const styles = StyleSheet.create({
   },
   track: {
     flex: 1,
-    height: 4,
+    height: 8,
     backgroundColor: Colors.border,
-    borderRadius: 2,
+    borderRadius: 4,
     overflow: "hidden",
   },
   fill: {
     height: "100%",
-    borderRadius: 2,
+    borderRadius: 4,
     shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.8,
-    shadowRadius: 4,
+    shadowOpacity: 0.9,
+    shadowRadius: 6,
   },
   pct: {
     fontSize: 11,

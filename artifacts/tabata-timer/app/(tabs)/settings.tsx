@@ -3,6 +3,7 @@ import { Feather, Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import React, { useCallback, useState } from "react";
 import {
+  Alert,
   Platform,
   Pressable,
   ScrollView,
@@ -14,7 +15,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { WheelPicker } from "@/components/WheelPicker";
 import Colors from "@/constants/colors";
-import { SimpleConfig, TimerMode, useTimer } from "@/context/TimerContext";
+import { CustomConfig, SimpleConfig, TimerMode, useTimer } from "@/context/TimerContext";
+import { PresetWorkout, SavedWorkout, useWorkouts } from "@/context/WorkoutsContext";
 
 // Generate arrays for the wheel pickers
 function range(from: number, to: number, step = 1): number[] {
@@ -177,9 +179,101 @@ function SummaryCard({ config }: { config: SimpleConfig }) {
   );
 }
 
+function PresetCard({
+  preset,
+  onLoad,
+}: {
+  preset: PresetWorkout;
+  onLoad: (p: PresetWorkout) => void;
+}) {
+  return (
+    <Pressable
+      onPress={() => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        onLoad(preset);
+      }}
+      style={presetStyles.card}
+    >
+      <View style={presetStyles.tagPill}>
+        <Text style={presetStyles.tagText}>{preset.tag}</Text>
+      </View>
+      <View style={presetStyles.info}>
+        <Text style={presetStyles.name}>{preset.name}</Text>
+        <Text style={presetStyles.desc}>{preset.description}</Text>
+        {preset.simpleConfig && (
+          <Text style={presetStyles.meta}>
+            {preset.simpleConfig.workDuration}s work · {preset.simpleConfig.restDuration}s rest · {preset.simpleConfig.cycles} rounds
+          </Text>
+        )}
+      </View>
+      <Feather name="play-circle" size={24} color={Colors.accent} />
+    </Pressable>
+  );
+}
+
+function SavedCard({
+  workout,
+  onLoad,
+  onDelete,
+}: {
+  workout: SavedWorkout;
+  onLoad: (w: SavedWorkout) => void;
+  onDelete: (id: string) => void;
+}) {
+  const date = new Date(workout.createdAt).toLocaleDateString(undefined, {
+    month: "short",
+    day: "numeric",
+  });
+  return (
+    <View style={presetStyles.savedCard}>
+      <Pressable
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          onLoad(workout);
+        }}
+        style={presetStyles.savedLeft}
+      >
+        <View>
+          <Text style={presetStyles.name}>{workout.name}</Text>
+          <Text style={presetStyles.meta}>
+            {workout.customConfig
+              ? `${workout.customConfig.intervals.length} intervals · ${workout.customConfig.cycles} cycles`
+              : ""}{" "}
+            · ~{workout.estimatedMinutes}m · Saved {date}
+          </Text>
+        </View>
+      </Pressable>
+      <View style={presetStyles.savedActions}>
+        <Pressable
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            onLoad(workout);
+          }}
+          style={presetStyles.loadBtn}
+        >
+          <Feather name="play" size={14} color={Colors.accent} />
+        </Pressable>
+        <Pressable
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            Alert.alert("Delete workout?", `Remove "${workout.name}" from saved workouts?`, [
+              { text: "Cancel", style: "cancel" },
+              { text: "Delete", style: "destructive", onPress: () => onDelete(workout.id) },
+            ]);
+          }}
+          style={presetStyles.deleteBtn}
+        >
+          <Feather name="trash-2" size={14} color="#FF453A" />
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
-  const { mode, setMode, simpleConfig, setSimpleConfig, reset } = useTimer();
+  const { mode, setMode, simpleConfig, setSimpleConfig, setCustomConfig, reset } = useTimer();
+  const { presets, savedWorkouts, deleteWorkout } = useWorkouts();
   const [local, setLocal] = useState<SimpleConfig>(simpleConfig);
 
   const update = useCallback(
@@ -192,6 +286,37 @@ export default function SettingsScreen() {
       reset();
     },
     [setSimpleConfig, reset]
+  );
+
+  const loadPreset = useCallback(
+    (p: PresetWorkout) => {
+      if (p.simpleConfig) {
+        setSimpleConfig(p.simpleConfig);
+        setLocal(p.simpleConfig);
+        setMode("simple");
+        reset();
+        Alert.alert("Loaded!", `"${p.name}" is ready. Head to the timer to start.`);
+      }
+    },
+    [setSimpleConfig, setMode, reset]
+  );
+
+  const loadSavedWorkout = useCallback(
+    (w: SavedWorkout) => {
+      if (w.customConfig) {
+        setCustomConfig(w.customConfig);
+        setMode("custom");
+        reset();
+        Alert.alert("Loaded!", `"${w.name}" is ready. Head to the timer to start.`);
+      } else if (w.simpleConfig) {
+        setSimpleConfig(w.simpleConfig);
+        setLocal(w.simpleConfig);
+        setMode("simple");
+        reset();
+        Alert.alert("Loaded!", `"${w.name}" is ready. Head to the timer to start.`);
+      }
+    },
+    [setCustomConfig, setSimpleConfig, setMode, reset]
   );
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
@@ -294,6 +419,32 @@ export default function SettingsScreen() {
             </Pressable>
           </View>
         )}
+
+        {/* ─── Saved Workouts ─── */}
+        {savedWorkouts.length > 0 && (
+          <View style={styles.workoutsSection}>
+            <Text style={styles.sectionHeader}>Saved Workouts</Text>
+            {savedWorkouts.map((w) => (
+              <SavedCard
+                key={w.id}
+                workout={w}
+                onLoad={loadSavedWorkout}
+                onDelete={deleteWorkout}
+              />
+            ))}
+          </View>
+        )}
+
+        {/* ─── Presets ─── */}
+        <View style={styles.workoutsSection}>
+          <Text style={styles.sectionHeader}>Workout Presets</Text>
+          <Text style={styles.sectionSub}>Tap any preset to load it instantly</Text>
+          {presets.map((p) => (
+            <PresetCard key={p.id} preset={p} onLoad={loadPreset} />
+          ))}
+        </View>
+
+        <View style={{ height: 20 }} />
       </ScrollView>
     </View>
   );
@@ -318,6 +469,22 @@ const styles = StyleSheet.create({
   section: {
     marginTop: 8,
     gap: 16,
+  },
+  workoutsSection: {
+    marginTop: 28,
+    gap: 10,
+  },
+  sectionHeader: {
+    fontSize: 18,
+    fontFamily: "Inter_700Bold",
+    color: Colors.text,
+    marginBottom: 2,
+  },
+  sectionSub: {
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
+    color: Colors.textMuted,
+    marginBottom: 4,
   },
   field: {
     backgroundColor: Colors.surface,
@@ -468,6 +635,86 @@ const modeStyles = StyleSheet.create({
   tabTextActive: {
     color: Colors.white,
     fontFamily: "Inter_600SemiBold",
+  },
+});
+
+const presetStyles = StyleSheet.create({
+  card: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.surface,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    padding: 14,
+    gap: 12,
+  },
+  tagPill: {
+    backgroundColor: Colors.accentMuted,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    minWidth: 52,
+    alignItems: "center",
+  },
+  tagText: {
+    fontSize: 11,
+    fontFamily: "Inter_700Bold",
+    color: Colors.accent,
+    letterSpacing: 0.3,
+  },
+  info: {
+    flex: 1,
+    gap: 2,
+  },
+  name: {
+    fontSize: 15,
+    fontFamily: "Inter_600SemiBold",
+    color: Colors.text,
+  },
+  desc: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    color: Colors.textSecondary,
+  },
+  meta: {
+    fontSize: 11,
+    fontFamily: "Inter_400Regular",
+    color: Colors.textMuted,
+    marginTop: 1,
+  },
+  savedCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.surface,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    padding: 14,
+    gap: 10,
+  },
+  savedLeft: {
+    flex: 1,
+  },
+  savedActions: {
+    flexDirection: "row",
+    gap: 8,
+  },
+  loadBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: Colors.accentMuted,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  deleteBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: "rgba(255,69,58,0.1)",
+    alignItems: "center",
+    justifyContent: "center",
   },
 });
 
