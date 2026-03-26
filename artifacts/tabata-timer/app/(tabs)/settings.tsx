@@ -190,6 +190,7 @@ function PresetCard({
   preset: PresetWorkout;
   onLoad: (p: PresetWorkout) => void;
 }) {
+  const { t } = useI18n();
   return (
     <Pressable
       onPress={() => {
@@ -206,7 +207,7 @@ function PresetCard({
         <Text style={presetStyles.desc}>{preset.description}</Text>
         {preset.simpleConfig && (
           <Text style={presetStyles.meta}>
-            {preset.simpleConfig.workDuration}s work · {preset.simpleConfig.restDuration}s rest · {preset.simpleConfig.cycles} rounds
+            {preset.simpleConfig.workDuration}s {t("work").toLowerCase()} · {preset.simpleConfig.restDuration}s {t("rest").toLowerCase()} · {preset.simpleConfig.cycles} {t("cycleSuffixPlural")}
           </Text>
         )}
       </View>
@@ -226,6 +227,7 @@ function SavedCard({
   onEdit: (w: SavedWorkout) => void;
   onDelete: (id: string) => void;
 }) {
+  const { t } = useI18n();
   const date = new Date(workout.createdAt).toLocaleDateString(undefined, {
     month: "short",
     day: "numeric",
@@ -243,9 +245,9 @@ function SavedCard({
           <Text style={presetStyles.name}>{workout.name}</Text>
           <Text style={presetStyles.meta}>
             {workout.customConfig
-              ? `${workout.customConfig.intervals.length} intervals · ${workout.customConfig.cycles} cycles`
+              ? `${workout.customConfig.intervals.length} ${t("intervalSuffixPlural")} · ${workout.customConfig.intervals.filter(iv => iv.type === "work").length} ${t("cycleSuffixPlural")}`
               : ""}{" "}
-            · ~{workout.estimatedMinutes}m · Saved {date}
+            · ~{workout.estimatedMinutes}m · {t("saved")} {date}
           </Text>
         </View>
       </Pressable>

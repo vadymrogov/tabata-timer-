@@ -111,7 +111,10 @@ export default function TimerScreen() {
   const totalProgress = isIdle ? 0 : isComplete ? 1 : totalElapsed / Math.max(totalDuration, 1);
 
   const intervalType = currentInterval?.type ?? "work";
-  const totalCycles = mode === "simple" ? simpleConfig.cycles : customConfig.cycles;
+  const totalCycles =
+    mode === "simple"
+      ? simpleConfig.cycles
+      : currentIntervals.filter((iv) => iv.type === "work").length || 1;
 
   // Sound: countdown beeps (3, 2, 1)
   const prevTimeRef = useRef(timeRemaining);

@@ -172,22 +172,22 @@ function IntervalCard({
           <View style={styles.field}>
             <Text style={styles.fieldLabel}>{t("fieldDuration")}</Text>
             <View style={styles.durationRow}>
-              <Pressable onPress={() => adjustDuration(-5)} style={styles.durBtn}>
-                <Text style={styles.durBtnText}>-5s</Text>
-              </Pressable>
               <Pressable onPress={() => adjustDuration(-15)} style={styles.durBtn}>
                 <Text style={styles.durBtnText}>-15s</Text>
+              </Pressable>
+              <Pressable onPress={() => adjustDuration(-5)} style={styles.durBtn}>
+                <Text style={styles.durBtnText}>-5s</Text>
               </Pressable>
               <View style={[styles.durValue, { borderColor: colors.border }]}>
                 <Text style={[styles.durValueText, { color: colors.text }]}>
                   {formatDur(interval.duration)}
                 </Text>
               </View>
+              <Pressable onPress={() => adjustDuration(5)} style={styles.durBtn}>
+                <Text style={styles.durBtnText}>+5s</Text>
+              </Pressable>
               <Pressable onPress={() => adjustDuration(15)} style={styles.durBtn}>
                 <Text style={styles.durBtnText}>+15s</Text>
-              </Pressable>
-              <Pressable onPress={() => adjustDuration(30)} style={styles.durBtn}>
-                <Text style={styles.durBtnText}>+30s</Text>
               </Pressable>
             </View>
           </View>
