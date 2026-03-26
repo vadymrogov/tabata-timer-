@@ -1,23 +1,21 @@
 import * as Haptics from "expo-haptics";
 import { Feather, MaterialCommunityIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import React, { useState } from "react";
+import React, { useCallback, useState } from "react";
 import {
   Alert,
   Modal,
   Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from "react-native";
-import Animated, {
-  FadeInDown,
-  FadeOutUp,
-  Layout,
-} from "react-native-reanimated";
+import DraggableFlatList, {
+  RenderItemParams,
+  ScaleDecorator,
+} from "react-native-draggable-flatlist";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import Colors from "@/constants/colors";
@@ -64,10 +62,8 @@ interface IntervalCardProps {
   index: number;
   onUpdate: (id: string, patch: Partial<Interval>) => void;
   onDelete: (id: string) => void;
-  onMoveUp: (id: string) => void;
-  onMoveDown: (id: string) => void;
-  isFirst: boolean;
-  isLast: boolean;
+  drag: () => void;
+  isActive: boolean;
 }
 
 function IntervalCard({
@@ -75,10 +71,8 @@ function IntervalCard({
   index,
   onUpdate,
   onDelete,
-  onMoveUp,
-  onMoveDown,
-  isFirst,
-  isLast,
+  drag,
+  isActive,
 }: IntervalCardProps) {
   const [expanded, setExpanded] = useState(false);
   const { t } = useI18n();
@@ -93,12 +87,7 @@ function IntervalCard({
   };
 
   return (
-    <Animated.View
-      layout={Layout.springify()}
-      entering={FadeInDown.duration(250)}
-      exiting={FadeOutUp.duration(200)}
-      style={[styles.card, { borderLeftColor: colors.border }]}
-    >
+    <View style={[styles.card, { borderLeftColor: colors.border }, isActive && styles.cardActive]}>
       <Pressable
         onPress={() => setExpanded((e) => !e)}
         style={styles.cardHeader}
@@ -118,32 +107,14 @@ function IntervalCard({
         </View>
         <View style={styles.cardRight}>
           <Pressable
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              onMoveUp(interval.id);
+            onLongPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+              drag();
             }}
-            disabled={isFirst}
-            style={styles.reorderBtn}
+            style={styles.dragHandle}
+            hitSlop={8}
           >
-            <Feather
-              name="chevron-up"
-              size={18}
-              color={isFirst ? Colors.textMuted : Colors.textSecondary}
-            />
-          </Pressable>
-          <Pressable
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              onMoveDown(interval.id);
-            }}
-            disabled={isLast}
-            style={styles.reorderBtn}
-          >
-            <Feather
-              name="chevron-down"
-              size={18}
-              color={isLast ? Colors.textMuted : Colors.textSecondary}
-            />
+            <Feather name="menu" size={20} color={Colors.textMuted} />
           </Pressable>
           <Feather
             name={expanded ? "chevron-up" : "chevron-down"}
@@ -252,7 +223,7 @@ function IntervalCard({
           </Pressable>
         </View>
       )}
-    </Animated.View>
+    </View>
   );
 }
 
@@ -336,27 +307,10 @@ export default function CustomConfigScreen() {
     });
   };
 
-  const moveUp = (id: string) => {
-    setIntervals((prev) => {
-      const idx = prev.findIndex((iv) => iv.id === id);
-      if (idx <= 0) return prev;
-      const next = [...prev];
-      [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]];
-      save(next);
-      return next;
-    });
-  };
-
-  const moveDown = (id: string) => {
-    setIntervals((prev) => {
-      const idx = prev.findIndex((iv) => iv.id === id);
-      if (idx < 0 || idx >= prev.length - 1) return prev;
-      const next = [...prev];
-      [next[idx + 1], next[idx]] = [next[idx], next[idx + 1]];
-      save(next);
-      return next;
-    });
-  };
+  const onDragEnd = useCallback(({ data }: { data: Interval[] }) => {
+    setIntervals(data);
+    save(data);
+  }, [save]);
 
   const addInterval = (type: IntervalType) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -392,6 +346,131 @@ export default function CustomConfigScreen() {
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
+
+  const renderIntervalItem = useCallback(
+    ({ item, getIndex, drag, isActive }: RenderItemParams<Interval>) => (
+      <ScaleDecorator>
+        <IntervalCard
+          interval={item}
+          index={getIndex() ?? 0}
+          onUpdate={updateInterval}
+          onDelete={deleteInterval}
+          drag={drag}
+          isActive={isActive}
+        />
+      </ScaleDecorator>
+    ),
+    [updateInterval, deleteInterval]
+  );
+
+  const ListHeader = (
+    <View>
+      {/* Cycles */}
+      <View style={styles.section}>
+        <Text style={styles.sectionLabel}>{t("cycles")}</Text>
+        <View style={styles.cycleRow}>
+          <Pressable onPress={() => adjustCycles(-1)} style={styles.cycleBtn}>
+            <Feather name="minus" size={20} color={Colors.text} />
+          </Pressable>
+          <Text style={styles.cycleValue}>{cycles}</Text>
+          <Pressable onPress={() => adjustCycles(1)} style={styles.cycleBtn}>
+            <Feather name="plus" size={20} color={Colors.text} />
+          </Pressable>
+        </View>
+      </View>
+
+      {/* Prepare */}
+      <View style={styles.section}>
+        <Text style={styles.sectionLabel}>{t("prepareDuration")}</Text>
+        <View style={styles.prepRow}>
+          {[0, 3, 5, 10].map((v) => (
+            <Pressable
+              key={v}
+              onPress={() => {
+                Haptics.selectionAsync();
+                setPrepareDuration(v);
+                save(intervals, undefined, v);
+              }}
+              style={[
+                styles.prepChip,
+                prepareDuration === v && styles.prepChipActive,
+              ]}
+            >
+              <Text
+                style={[
+                  styles.prepChipText,
+                  prepareDuration === v && styles.prepChipTextActive,
+                ]}
+              >
+                {v === 0 ? t("none") : `${v}s`}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      </View>
+
+      {/* Total */}
+      <View style={styles.totalBox}>
+        <Feather name="clock" size={14} color={Colors.textMuted} />
+        <Text style={styles.totalText}>
+          {cycles} {cycles === 1 ? t("cycleSuffix") : t("cycleSuffixPlural")} of{" "}
+          {intervals.length} {intervals.length === 1 ? t("intervalSuffix") : t("intervalSuffixPlural")}
+          {" "}= ~{totalSecs < 60 ? `${totalSecs}s` : `${(totalSecs / 60).toFixed(1)}m`}
+        </Text>
+      </View>
+
+      {/* Intervals header */}
+      <Text style={[styles.sectionLabel, { marginBottom: 10, marginTop: 4 }]}>{t("intervals")}</Text>
+      {intervals.length === 0 && (
+        <View style={styles.empty}>
+          <MaterialCommunityIcons name="timer-sand-empty" size={36} color={Colors.textMuted} />
+          <Text style={styles.emptyText}>{t("noIntervalsYet")}</Text>
+          <Text style={styles.emptySub}>{t("noIntervalsYetSub")}</Text>
+        </View>
+      )}
+    </View>
+  );
+
+  const ListFooter = (
+    <View>
+      {/* Add buttons */}
+      <View style={styles.addRow}>
+        <Pressable
+          onPress={() => addInterval("work")}
+          style={[styles.addBtn, styles.addBtnWork]}
+        >
+          <Feather name="plus" size={16} color={Colors.work} />
+          <Text style={[styles.addBtnText, { color: Colors.work }]}>{t("addWork")}</Text>
+        </Pressable>
+        <Pressable
+          onPress={() => addInterval("rest")}
+          style={[styles.addBtn, styles.addBtnRest]}
+        >
+          <Feather name="plus" size={16} color={Colors.rest} />
+          <Text style={[styles.addBtnText, { color: Colors.rest }]}>{t("addRest")}</Text>
+        </Pressable>
+      </View>
+
+      {/* Save / Update Workout Button */}
+      <Pressable
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+          if (editingWorkout) {
+            setWorkoutName(editingWorkout.name);
+          }
+          setSaveModalVisible(true);
+        }}
+        style={styles.saveWorkoutBtn}
+      >
+        <Feather name={editingWorkout ? "save" : "bookmark"} size={18} color="#fff" />
+        <Text style={styles.saveWorkoutText}>
+          {editingWorkout ? t("updateWorkout") : t("saveWorkout")}
+        </Text>
+      </Pressable>
+
+      <View style={{ height: 40 }} />
+    </View>
+  );
 
   return (
     <View style={[styles.root, { paddingBottom: bottomPad }]}>
@@ -461,132 +540,17 @@ export default function CustomConfigScreen() {
         <View style={{ width: 40 }} />
       </View>
 
-      <ScrollView
+      <DraggableFlatList
+        data={intervals}
+        renderItem={renderIntervalItem}
+        keyExtractor={(item) => item.id}
+        onDragEnd={onDragEnd}
+        ListHeaderComponent={ListHeader}
+        ListFooterComponent={ListFooter}
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
-      >
-        {/* Cycles */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>{t("cycles")}</Text>
-          <View style={styles.cycleRow}>
-            <Pressable onPress={() => adjustCycles(-1)} style={styles.cycleBtn}>
-              <Feather name="minus" size={20} color={Colors.text} />
-            </Pressable>
-            <Text style={styles.cycleValue}>{cycles}</Text>
-            <Pressable onPress={() => adjustCycles(1)} style={styles.cycleBtn}>
-              <Feather name="plus" size={20} color={Colors.text} />
-            </Pressable>
-          </View>
-        </View>
-
-        {/* Prepare */}
-        <View style={styles.section}>
-          <Text style={styles.sectionLabel}>{t("prepareDuration")}</Text>
-          <View style={styles.prepRow}>
-            {[0, 3, 5, 10].map((v) => (
-              <Pressable
-                key={v}
-                onPress={() => {
-                  Haptics.selectionAsync();
-                  setPrepareDuration(v);
-                  save(intervals, undefined, v);
-                }}
-                style={[
-                  styles.prepChip,
-                  prepareDuration === v && styles.prepChipActive,
-                ]}
-              >
-                <Text
-                  style={[
-                    styles.prepChipText,
-                    prepareDuration === v && styles.prepChipTextActive,
-                  ]}
-                >
-                  {v === 0 ? t("none") : `${v}s`}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-        </View>
-
-        {/* Total */}
-        <View style={styles.totalBox}>
-          <Feather name="clock" size={14} color={Colors.textMuted} />
-          <Text style={styles.totalText}>
-            {cycles} {cycles === 1 ? t("cycleSuffix") : t("cycleSuffixPlural")} of{" "}
-            {intervals.length} {intervals.length === 1 ? t("intervalSuffix") : t("intervalSuffixPlural")}
-            {" "}= ~{totalSecs < 60 ? `${totalSecs}s` : `${(totalSecs / 60).toFixed(1)}m`}
-          </Text>
-        </View>
-
-        {/* Intervals */}
-        <View style={styles.intervalsSection}>
-          <Text style={styles.sectionLabel}>{t("intervals")}</Text>
-          {intervals.length === 0 ? (
-            <View style={styles.empty}>
-              <MaterialCommunityIcons
-                name="timer-sand-empty"
-                size={36}
-                color={Colors.textMuted}
-              />
-              <Text style={styles.emptyText}>{t("noIntervalsYet")}</Text>
-              <Text style={styles.emptySub}>{t("noIntervalsYetSub")}</Text>
-            </View>
-          ) : (
-            intervals.map((iv, idx) => (
-              <IntervalCard
-                key={iv.id}
-                interval={iv}
-                index={idx}
-                onUpdate={updateInterval}
-                onDelete={deleteInterval}
-                onMoveUp={moveUp}
-                onMoveDown={moveDown}
-                isFirst={idx === 0}
-                isLast={idx === intervals.length - 1}
-              />
-            ))
-          )}
-        </View>
-
-        {/* Add buttons */}
-        <View style={styles.addRow}>
-          <Pressable
-            onPress={() => addInterval("work")}
-            style={[styles.addBtn, styles.addBtnWork]}
-          >
-            <Feather name="plus" size={16} color={Colors.work} />
-            <Text style={[styles.addBtnText, { color: Colors.work }]}>{t("addWork")}</Text>
-          </Pressable>
-          <Pressable
-            onPress={() => addInterval("rest")}
-            style={[styles.addBtn, styles.addBtnRest]}
-          >
-            <Feather name="plus" size={16} color={Colors.rest} />
-            <Text style={[styles.addBtnText, { color: Colors.rest }]}>{t("addRest")}</Text>
-          </Pressable>
-        </View>
-
-        {/* Save / Update Workout Button */}
-        <Pressable
-          onPress={() => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            if (editingWorkout) {
-              setWorkoutName(editingWorkout.name);
-            }
-            setSaveModalVisible(true);
-          }}
-          style={styles.saveWorkoutBtn}
-        >
-          <Feather name={editingWorkout ? "save" : "bookmark"} size={18} color="#fff" />
-          <Text style={styles.saveWorkoutText}>
-            {editingWorkout ? t("updateWorkout") : t("saveWorkout")}
-          </Text>
-        </Pressable>
-
-        <View style={{ height: 40 }} />
-      </ScrollView>
+      />
     </View>
   );
 }
@@ -755,13 +719,22 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_500Medium",
     marginTop: 1,
   },
+  cardActive: {
+    opacity: 0.95,
+    shadowColor: Colors.accent,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
   cardRight: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
+    gap: 8,
   },
-  reorderBtn: {
+  dragHandle: {
     padding: 6,
+    opacity: 0.6,
   },
   cardBody: {
     borderTopWidth: 1,

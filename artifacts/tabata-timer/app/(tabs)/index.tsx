@@ -223,46 +223,48 @@ export default function TimerScreen() {
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
       >
-        {/* Header */}
+        {/* Top action bar: sound + account icons */}
+        <View style={styles.topBar}>
+          <Pressable
+            onPress={toggleSound}
+            style={styles.muteBtn}
+            hitSlop={12}
+          >
+            <Ionicons
+              name={soundEnabled ? "volume-high" : "volume-mute"}
+              size={22}
+              color={soundEnabled ? Colors.textSecondary : Colors.textMuted}
+            />
+          </Pressable>
+          <Pressable
+            onPress={() => setAccountModalVisible(true)}
+            style={styles.muteBtn}
+            hitSlop={12}
+          >
+            <Ionicons
+              name="person-circle-outline"
+              size={24}
+              color={Colors.textSecondary}
+            />
+          </Pressable>
+        </View>
+
+        {/* Header: title + interval badge */}
         <View style={styles.header}>
           <Text style={styles.appTitle}>{t("appTitle")}</Text>
-          <View style={styles.headerRight}>
-            {!isIdle && !isComplete && currentInterval && (
-              <Animated.Text
-                entering={FadeIn.duration(300)}
-                exiting={FadeOut.duration(200)}
-                key={currentIntervalIndex}
-                style={[
-                  styles.intervalBadge,
-                  { color: getIntervalColor(intervalType) },
-                ]}
-              >
-                {getIntervalLabel(intervalType, t)}
-              </Animated.Text>
-            )}
-            <Pressable
-              onPress={toggleSound}
-              style={styles.muteBtn}
-              hitSlop={10}
+          {!isIdle && !isComplete && currentInterval && (
+            <Animated.Text
+              entering={FadeIn.duration(300)}
+              exiting={FadeOut.duration(200)}
+              key={currentIntervalIndex}
+              style={[
+                styles.intervalBadge,
+                { color: getIntervalColor(intervalType) },
+              ]}
             >
-              <Ionicons
-                name={soundEnabled ? "volume-high" : "volume-mute"}
-                size={22}
-                color={soundEnabled ? Colors.textSecondary : Colors.textMuted}
-              />
-            </Pressable>
-            <Pressable
-              onPress={() => setAccountModalVisible(true)}
-              style={styles.muteBtn}
-              hitSlop={10}
-            >
-              <Ionicons
-                name="person-circle-outline"
-                size={24}
-                color={Colors.textSecondary}
-              />
-            </Pressable>
-          </View>
+              {getIntervalLabel(intervalType, t)}
+            </Animated.Text>
+          )}
         </View>
 
         {/* Segmented workout timeline */}
@@ -347,11 +349,20 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: 0,
   },
+  topBar: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    alignItems: "center",
+    paddingHorizontal: 20,
+    paddingTop: 4,
+    paddingBottom: 0,
+    gap: 10,
+  },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingTop: 8,
+    paddingTop: 4,
     paddingBottom: 6,
     paddingHorizontal: 24,
   },
@@ -360,11 +371,6 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_700Bold",
     color: Colors.text,
     letterSpacing: -0.5,
-  },
-  headerRight: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
   },
   muteBtn: {
     padding: 4,

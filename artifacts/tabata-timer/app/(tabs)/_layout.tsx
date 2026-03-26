@@ -6,6 +6,7 @@ import { SymbolView } from "expo-symbols";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import React from "react";
 import { Platform, StyleSheet, View, useColorScheme } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import Colors from "@/constants/colors";
 
@@ -29,6 +30,8 @@ function ClassicTabLayout() {
   const isDark = true;
   const isIOS = Platform.OS === "ios";
   const isWeb = Platform.OS === "web";
+  const { bottom: bottomInset } = useSafeAreaInsets();
+  const tabBarHeight = isWeb ? 84 : 56 + bottomInset;
 
   return (
     <Tabs
@@ -42,7 +45,8 @@ function ClassicTabLayout() {
           borderTopWidth: 1,
           borderTopColor: Colors.border,
           elevation: 0,
-          height: isWeb ? 84 : 62,
+          height: tabBarHeight,
+          paddingBottom: bottomInset,
         },
         tabBarLabelStyle: {
           fontFamily: "Inter_500Medium",
