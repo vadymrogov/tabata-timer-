@@ -1,9 +1,10 @@
 import * as Haptics from "expo-haptics";
 import { Feather, Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import {
   Alert,
+  Animated,
   Platform,
   Pressable,
   ScrollView,
@@ -256,10 +257,7 @@ function SavedCard({
         <Pressable
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            Alert.alert("Delete workout?", `Remove "${workout.name}" from saved workouts?`, [
-              { text: "Cancel", style: "cancel" },
-              { text: "Delete", style: "destructive", onPress: () => onDelete(workout.id) },
-            ]);
+            onDelete(workout.id);
           }}
           style={presetStyles.deleteBtn}
         >
@@ -275,6 +273,22 @@ export default function SettingsScreen() {
   const { mode, setMode, simpleConfig, setSimpleConfig, setCustomConfig, reset } = useTimer();
   const { presets, savedWorkouts, deleteWorkout } = useWorkouts();
   const [local, setLocal] = useState<SimpleConfig>(simpleConfig);
+  const [toastText, setToastText] = useState("");
+  const toastAnim = useRef(new Animated.Value(0)).current;
+  const toastTimer = useRef<ReturnType<typeof setTimeout>>();
+
+  const showToast = useCallback(
+    (text: string) => {
+      setToastText(text);
+      if (toastTimer.current) clearTimeout(toastTimer.current);
+      Animated.sequence([
+        Animated.timing(toastAnim, { toValue: 1, duration: 220, useNativeDriver: true }),
+        Animated.delay(1800),
+        Animated.timing(toastAnim, { toValue: 0, duration: 300, useNativeDriver: true }),
+      ]).start();
+    },
+    [toastAnim]
+  );
 
   const update = useCallback(
     (patch: Partial<SimpleConfig>) => {
@@ -291,32 +305,51 @@ export default function SettingsScreen() {
   const loadPreset = useCallback(
     (p: PresetWorkout) => {
       if (p.simpleConfig) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         setSimpleConfig(p.simpleConfig);
         setLocal(p.simpleConfig);
         setMode("simple");
         reset();
-        Alert.alert("Loaded!", `"${p.name}" is ready. Head to the timer to start.`);
+        showToast(`✓ "${p.name}" loaded — go to Timer to start`);
       }
     },
-    [setSimpleConfig, setMode, reset]
+    [setSimpleConfig, setMode, reset, showToast]
   );
 
   const loadSavedWorkout = useCallback(
     (w: SavedWorkout) => {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       if (w.customConfig) {
         setCustomConfig(w.customConfig);
         setMode("custom");
         reset();
-        Alert.alert("Loaded!", `"${w.name}" is ready. Head to the timer to start.`);
       } else if (w.simpleConfig) {
         setSimpleConfig(w.simpleConfig);
         setLocal(w.simpleConfig);
         setMode("simple");
         reset();
-        Alert.alert("Loaded!", `"${w.name}" is ready. Head to the timer to start.`);
       }
+      showToast(`✓ "${w.name}" loaded — go to Timer to start`);
     },
-    [setCustomConfig, setSimpleConfig, setMode, reset]
+    [setCustomConfig, setSimpleConfig, setMode, reset, showToast]
+  );
+
+  const handleDeleteWorkout = useCallback(
+    (id: string) => {
+      Alert.alert(
+        "Delete workout?",
+        "This cannot be undone.",
+        [
+          { text: "Cancel", style: "cancel" },
+          {
+            text: "Delete",
+            style: "destructive",
+            onPress: () => deleteWorkout(id),
+          },
+        ]
+      );
+    },
+    [deleteWorkout]
   );
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
@@ -324,6 +357,20 @@ export default function SettingsScreen() {
 
   return (
     <View style={[styles.root, { paddingBottom: bottomPad + 90 }]}>
+      {/* Toast banner */}
+      <Animated.View
+        style={[
+          styles.toast,
+          {
+            top: topPad + 8,
+            opacity: toastAnim,
+            transform: [{ translateY: toastAnim.interpolate({ inputRange: [0, 1], outputRange: [-16, 0] }) }],
+          },
+        ]}
+        pointerEvents="none"
+      >
+        <Text style={styles.toastText}>{toastText}</Text>
+      </Animated.View>
       <ScrollView
         contentContainerStyle={[styles.scroll, { paddingTop: topPad + 8 }]}
         showsVerticalScrollIndicator={false}
@@ -429,7 +476,7 @@ export default function SettingsScreen() {
                 key={w.id}
                 workout={w}
                 onLoad={loadSavedWorkout}
-                onDelete={deleteWorkout}
+                onDelete={handleDeleteWorkout}
               />
             ))}
           </View>
@@ -469,6 +516,26 @@ const styles = StyleSheet.create({
   section: {
     marginTop: 8,
     gap: 16,
+  },
+  toast: {
+    position: "absolute",
+    left: 20,
+    right: 20,
+    zIndex: 100,
+    backgroundColor: Colors.rest,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    shadowColor: Colors.rest,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+  },
+  toastText: {
+    fontSize: 13,
+    fontFamily: "Inter_600SemiBold",
+    color: "#fff",
+    textAlign: "center",
   },
   workoutsSection: {
     marginTop: 28,

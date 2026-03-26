@@ -4,6 +4,7 @@ import {
   NativeScrollEvent,
   NativeSyntheticEvent,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -34,29 +35,34 @@ export function WheelPicker({
   color = Colors.accent,
 }: WheelPickerProps) {
   const scrollRef = useRef<ScrollView>(null);
-  const lastIndex = useRef(-1);
+  const lastCommittedIndex = useRef(-1);
   const isMounting = useRef(true);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
+
   const selectedIndex = Math.max(0, values.indexOf(selectedValue));
 
-  // Scroll to selected value on mount and when selectedValue changes externally
+  // Scroll to selected on mount (and when external value changes)
   useEffect(() => {
-    const timer = setTimeout(() => {
+    const delay = isMounting.current ? 100 : 50;
+    const t = setTimeout(() => {
       scrollRef.current?.scrollTo({
         y: selectedIndex * ITEM_HEIGHT,
         animated: !isMounting.current,
       });
       isMounting.current = false;
-    }, isMounting.current ? 80 : 0);
-    return () => clearTimeout(timer);
+    }, delay);
+    return () => clearTimeout(t);
   }, [selectedIndex]);
 
-  const onScrollEnd = useCallback(
-    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
-      const y = e.nativeEvent.contentOffset.y;
-      const idx = Math.round(y / ITEM_HEIGHT);
+  // Shared commit logic
+  const commitIndex = useCallback(
+    (rawY: number, animated = true) => {
+      const idx = Math.round(rawY / ITEM_HEIGHT);
       const clamped = Math.max(0, Math.min(values.length - 1, idx));
-      if (clamped !== lastIndex.current) {
-        lastIndex.current = clamped;
+      // Snap the scroll position
+      scrollRef.current?.scrollTo({ y: clamped * ITEM_HEIGHT, animated });
+      if (clamped !== lastCommittedIndex.current) {
+        lastCommittedIndex.current = clamped;
         Haptics.selectionAsync();
         const val = values[clamped];
         if (val !== selectedValue) {
@@ -67,21 +73,72 @@ export function WheelPicker({
     [values, selectedValue, onValueChange]
   );
 
+  // Web: debounce onScroll to detect stop
+  const onScroll = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      if (Platform.OS !== "web") return;
+      const y = e.nativeEvent.contentOffset.y;
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      debounceRef.current = setTimeout(() => {
+        commitIndex(y);
+      }, 120);
+    },
+    [commitIndex]
+  );
+
+  // Native: momentum end
+  const onMomentumScrollEnd = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      commitIndex(e.nativeEvent.contentOffset.y, false);
+    },
+    [commitIndex]
+  );
+
+  // Native: slow drag release
+  const onScrollEndDrag = useCallback(
+    (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+      commitIndex(e.nativeEvent.contentOffset.y);
+    },
+    [commitIndex]
+  );
+
+  // Tap an item directly to select it
+  const handleTap = useCallback(
+    (idx: number) => {
+      const clamped = Math.max(0, Math.min(values.length - 1, idx));
+      scrollRef.current?.scrollTo({ y: clamped * ITEM_HEIGHT, animated: true });
+      lastCommittedIndex.current = clamped;
+      Haptics.selectionAsync();
+      const val = values[clamped];
+      if (val !== selectedValue) {
+        onValueChange(val);
+      }
+    },
+    [values, selectedValue, onValueChange]
+  );
+
   return (
     <View style={[styles.container, { width, height: PICKER_HEIGHT }]}>
       {/* Selection highlight lines */}
-      <View style={[styles.selectionTop, { top: ITEM_HEIGHT * 2, borderColor: color }]} pointerEvents="none" />
-      <View style={[styles.selectionBottom, { top: ITEM_HEIGHT * 3, borderColor: color }]} pointerEvents="none" />
+      <View
+        style={[styles.selectionTop, { top: ITEM_HEIGHT * 2, borderColor: color }]}
+        pointerEvents="none"
+      />
+      <View
+        style={[styles.selectionBottom, { top: ITEM_HEIGHT * 3, borderColor: color }]}
+        pointerEvents="none"
+      />
 
       <ScrollView
         ref={scrollRef}
         showsVerticalScrollIndicator={false}
         snapToInterval={ITEM_HEIGHT}
         decelerationRate={Platform.OS === "ios" ? "fast" : 0.9}
-        onMomentumScrollEnd={onScrollEnd}
-        onScrollEndDrag={onScrollEnd}
-        contentContainerStyle={styles.content}
+        onScroll={onScroll}
+        onMomentumScrollEnd={onMomentumScrollEnd}
+        onScrollEndDrag={onScrollEndDrag}
         scrollEventThrottle={16}
+        contentContainerStyle={styles.content}
         nestedScrollEnabled
       >
         {values.map((val, idx) => {
@@ -91,7 +148,7 @@ export function WheelPicker({
           const isSelected = dist === 0;
 
           return (
-            <View key={val} style={styles.item}>
+            <Pressable key={val} onPress={() => handleTap(idx)} style={styles.item}>
               <Text
                 style={[
                   styles.itemText,
@@ -106,14 +163,10 @@ export function WheelPicker({
               >
                 {formatValue(val)}
               </Text>
-            </View>
+            </Pressable>
           );
         })}
       </ScrollView>
-
-      {/* Gradient overlays */}
-      <View style={styles.fadeTop} pointerEvents="none" />
-      <View style={styles.fadeBottom} pointerEvents="none" />
     </View>
   );
 }
@@ -141,7 +194,8 @@ const styles = StyleSheet.create({
     height: 1,
     borderTopWidth: 1,
     zIndex: 10,
-  },
+    pointerEvents: "none",
+  } as any,
   selectionBottom: {
     position: "absolute",
     left: 8,
@@ -149,23 +203,6 @@ const styles = StyleSheet.create({
     height: 1,
     borderTopWidth: 1,
     zIndex: 10,
-  },
-  fadeTop: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    height: ITEM_HEIGHT * 2,
-    backgroundColor: "transparent",
-    pointerEvents: "none",
-  } as any,
-  fadeBottom: {
-    position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: ITEM_HEIGHT * 2,
-    backgroundColor: "transparent",
     pointerEvents: "none",
   } as any,
 });
