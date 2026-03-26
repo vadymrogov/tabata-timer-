@@ -21,7 +21,7 @@ import { CircularProgress } from "@/components/CircularProgress";
 import { IntervalQueue } from "@/components/IntervalQueue";
 import { StatsBar } from "@/components/StatsBar";
 import { TimerControls } from "@/components/TimerControls";
-import { WorkoutProgressBar } from "@/components/WorkoutProgressBar";
+import { WorkoutTimeline } from "@/components/WorkoutTimeline";
 import Colors from "@/constants/colors";
 import { useTimer } from "@/context/TimerContext";
 import { useSounds } from "@/hooks/useSounds";
@@ -175,12 +175,12 @@ export default function TimerScreen() {
           )}
         </View>
 
-        {/* Total progress bar */}
-        <WorkoutProgressBar
-          progress={totalProgress}
-          intervalType={isIdle ? "work" : intervalType}
-          isIdle={isIdle}
-          isComplete={isComplete}
+        {/* Segmented workout timeline */}
+        <WorkoutTimeline
+          intervals={currentIntervals}
+          totalDuration={totalDuration}
+          totalElapsed={totalElapsed}
+          status={status}
         />
 
         {/* Interval name */}
