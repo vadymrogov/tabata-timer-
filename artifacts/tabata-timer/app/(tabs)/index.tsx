@@ -1,20 +1,17 @@
 import * as Haptics from "expo-haptics";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import {
   Platform,
   ScrollView,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
-  useColorScheme,
 } from "react-native";
 import Animated, {
   FadeIn,
   FadeOut,
   useAnimatedStyle,
   useSharedValue,
-  withRepeat,
   withSequence,
   withTiming,
 } from "react-native-reanimated";
@@ -24,32 +21,26 @@ import { CircularProgress } from "@/components/CircularProgress";
 import { IntervalQueue } from "@/components/IntervalQueue";
 import { StatsBar } from "@/components/StatsBar";
 import { TimerControls } from "@/components/TimerControls";
+import { WorkoutProgressBar } from "@/components/WorkoutProgressBar";
 import Colors from "@/constants/colors";
 import { useTimer } from "@/context/TimerContext";
+import { useSounds } from "@/hooks/useSounds";
 
 function getIntervalLabel(type: string) {
   switch (type) {
-    case "work":
-      return "WORK";
-    case "rest":
-      return "REST";
-    case "prepare":
-      return "READY";
-    default:
-      return "";
+    case "work": return "WORK";
+    case "rest": return "REST";
+    case "prepare": return "READY";
+    default: return "";
   }
 }
 
 function getIntervalColor(type: string) {
   switch (type) {
-    case "work":
-      return Colors.work;
-    case "rest":
-      return Colors.rest;
-    case "prepare":
-      return Colors.prepare;
-    default:
-      return Colors.text;
+    case "work": return Colors.work;
+    case "rest": return Colors.rest;
+    case "prepare": return Colors.prepare;
+    default: return Colors.text;
   }
 }
 
@@ -69,8 +60,8 @@ function CompleteBanner() {
     <Animated.View entering={FadeIn.duration(400)} style={styles.completeBanner}>
       <Animated.View style={[styles.completeBadge, style]}>
         <Text style={styles.completeEmoji}>🏆</Text>
-        <Text style={styles.completeTitle}>Workout Complete!</Text>
-        <Text style={styles.completeSub}>Great work. You crushed it.</Text>
+        <Text style={styles.completeTitle}>Complete!</Text>
+        <Text style={styles.completeSub}>You crushed it.</Text>
       </Animated.View>
     </Animated.View>
   );
@@ -92,6 +83,8 @@ export default function TimerScreen() {
     customConfig,
   } = useTimer();
 
+  const { play } = useSounds();
+
   const { status, currentIntervalIndex, currentCycle, timeRemaining, totalElapsed } =
     timerState;
 
@@ -104,18 +97,49 @@ export default function TimerScreen() {
       : null;
 
   const intervalDuration = currentInterval?.duration ?? 1;
-  const progress = isIdle
-    ? 0
-    : isComplete
-    ? 1
-    : 1 - timeRemaining / intervalDuration;
+  const progress = isIdle ? 0 : isComplete ? 1 : 1 - timeRemaining / intervalDuration;
+  const totalProgress = isIdle ? 0 : isComplete ? 1 : totalElapsed / Math.max(totalDuration, 1);
 
   const intervalType = currentInterval?.type ?? "work";
   const totalCycles = mode === "simple" ? simpleConfig.cycles : customConfig.cycles;
 
+  // Sound: countdown beeps (3, 2, 1)
+  const prevTimeRef = useRef(timeRemaining);
+  useEffect(() => {
+    if (status === "running" && currentInterval) {
+      const prev = prevTimeRef.current;
+      const curr = timeRemaining;
+      // Only fire if we've actually decremented
+      if (curr < prev && curr <= 3 && curr > 0) {
+        play("tick");
+      }
+    }
+    prevTimeRef.current = timeRemaining;
+  }, [timeRemaining, status]);
+
+  // Sound: interval changes
+  const prevIntervalRef = useRef(currentIntervalIndex);
+  useEffect(() => {
+    if (
+      prevIntervalRef.current !== currentIntervalIndex &&
+      currentIntervalIndex >= 0 &&
+      status === "running"
+    ) {
+      const iv = currentIntervals[currentIntervalIndex];
+      if (iv) {
+        if (iv.type === "work") play("work");
+        else if (iv.type === "rest") play("rest");
+      }
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    }
+    prevIntervalRef.current = currentIntervalIndex;
+  }, [currentIntervalIndex]);
+
+  // Sound: complete
   const prevStatusRef = useRef(status);
   useEffect(() => {
     if (prevStatusRef.current !== "complete" && status === "complete") {
+      play("complete");
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     }
     if (prevStatusRef.current === "running" && status === "paused") {
@@ -123,17 +147,6 @@ export default function TimerScreen() {
     }
     prevStatusRef.current = status;
   }, [status]);
-
-  const prevIntervalRef = useRef(currentIntervalIndex);
-  useEffect(() => {
-    if (
-      prevIntervalRef.current !== currentIntervalIndex &&
-      currentIntervalIndex >= 0
-    ) {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-    }
-    prevIntervalRef.current = currentIntervalIndex;
-  }, [currentIntervalIndex]);
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
@@ -161,6 +174,14 @@ export default function TimerScreen() {
             </Animated.Text>
           )}
         </View>
+
+        {/* Total progress bar */}
+        <WorkoutProgressBar
+          progress={totalProgress}
+          intervalType={isIdle ? "work" : intervalType}
+          isIdle={isIdle}
+          isComplete={isComplete}
+        />
 
         {/* Interval name */}
         {!isIdle && !isComplete && currentInterval && (
@@ -234,14 +255,15 @@ const styles = StyleSheet.create({
   },
   scroll: {
     flexGrow: 1,
-    paddingHorizontal: 24,
+    paddingHorizontal: 0,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     paddingTop: 8,
-    paddingBottom: 4,
+    paddingBottom: 6,
+    paddingHorizontal: 24,
   },
   appTitle: {
     fontSize: 26,
@@ -260,7 +282,9 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     textAlign: "center",
     marginTop: 4,
+    marginBottom: 2,
     letterSpacing: -0.3,
+    paddingHorizontal: 24,
   },
   idleHint: {
     fontSize: 15,
@@ -268,23 +292,25 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     textAlign: "center",
     marginTop: 4,
+    marginBottom: 2,
   },
   circleWrap: {
     alignItems: "center",
     justifyContent: "center",
-    marginVertical: 24,
+    marginVertical: 20,
     minHeight: 270,
   },
   statsWrap: {
     marginBottom: 20,
+    paddingHorizontal: 24,
   },
   queueWrap: {
-    marginHorizontal: -24,
     marginBottom: 20,
   },
   controlsWrap: {
     alignItems: "center",
     paddingBottom: 8,
+    paddingHorizontal: 24,
   },
   completeBanner: {
     alignItems: "center",
