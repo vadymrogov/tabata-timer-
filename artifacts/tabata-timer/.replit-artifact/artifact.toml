@@ -1,0 +1,27 @@
+kind = "mobile"
+previewPath = "/"
+title = "Tabata Timer"
+version = "1.0.0"
+id = "artifacts/tabata-timer"
+router = "expo-domain"
+
+[[integratedSkills]]
+name = "expo"
+version = "1.0.0"
+
+[[services]]
+ensurePreviewReachable = "/status"
+name = "expo"
+paths = [ "/" ]
+localPort = 19323
+
+[services.development]
+run = "pnpm --filter @workspace/tabata-timer run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/tabata-timer", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/tabata-timer", "run", "serve" ]
+
+[services.env]
+PORT = "19323"
+BASE_PATH = "/"
