@@ -301,17 +301,17 @@ export default function SettingsScreen() {
     [toastAnim]
   );
 
-  const update = useCallback(
-    (patch: Partial<SimpleConfig>) => {
-      setLocal((prev) => {
-        const next = { ...prev, ...patch };
-        setSimpleConfig(next);
-        return next;
-      });
-      reset();
-    },
-    [setSimpleConfig, reset]
-  );
+  const update = useCallback((patch: Partial<SimpleConfig>) => {
+    setLocal((prev) => ({ ...prev, ...patch }));
+  }, []);
+
+  const handleSelect = useCallback(() => {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setSimpleConfig(local);
+    setMode("simple");
+    reset();
+    showToast("✓ Workout set — go to Timer to start");
+  }, [local, setSimpleConfig, setMode, reset, showToast]);
 
   const loadPreset = useCallback(
     (p: PresetWorkout) => {
@@ -469,6 +469,10 @@ export default function SettingsScreen() {
             />
 
             <SummaryCard config={local} />
+
+            <Pressable onPress={handleSelect} style={styles.selectBtn}>
+              <Text style={styles.selectBtnText}>Select</Text>
+            </Pressable>
           </View>
         ) : (
           <View style={styles.section}>
@@ -609,6 +613,19 @@ const styles = StyleSheet.create({
   wheelCentered: {
     alignItems: "center",
     paddingHorizontal: 12,
+  },
+  selectBtn: {
+    backgroundColor: Colors.accent,
+    borderRadius: 14,
+    paddingVertical: 16,
+    alignItems: "center",
+    marginTop: 8,
+  },
+  selectBtnText: {
+    fontSize: 16,
+    fontFamily: "Inter_700Bold",
+    color: "#fff",
+    letterSpacing: 0.3,
   },
   customHint: {
     fontSize: 14,
