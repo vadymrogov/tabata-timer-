@@ -11,9 +11,11 @@ const SOUND_SOURCES: Record<SoundName, ReturnType<typeof require>> = {
   complete: require("../assets/sounds/complete.wav"),
 };
 
-export function useSounds() {
+export function useSounds(soundEnabled: boolean = true) {
   const soundsRef = useRef<Partial<Record<SoundName, Audio.Sound>>>({});
   const loadedRef = useRef(false);
+  const soundEnabledRef = useRef(soundEnabled);
+  soundEnabledRef.current = soundEnabled;
 
   useEffect(() => {
     let cancelled = false;
@@ -58,6 +60,7 @@ export function useSounds() {
   }, []);
 
   const play = useCallback(async (name: SoundName) => {
+    if (!soundEnabledRef.current) return;
     try {
       const sound = soundsRef.current[name];
       if (!sound) return;

@@ -2,6 +2,7 @@ import * as Haptics from "expo-haptics";
 import React, { useEffect, useRef } from "react";
 import {
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -16,6 +17,8 @@ import Animated, {
   withTiming,
 } from "react-native-reanimated";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+
+import { Ionicons } from "@expo/vector-icons";
 
 import { CircularProgress } from "@/components/CircularProgress";
 import { IntervalQueue } from "@/components/IntervalQueue";
@@ -81,9 +84,11 @@ export default function TimerScreen() {
     mode,
     simpleConfig,
     customConfig,
+    soundEnabled,
+    toggleSound,
   } = useTimer();
 
-  const { play } = useSounds();
+  const { play } = useSounds(soundEnabled);
 
   const { status, currentIntervalIndex, currentCycle, timeRemaining, totalElapsed } =
     timerState;
@@ -160,19 +165,32 @@ export default function TimerScreen() {
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.appTitle}>Tábata</Text>
-          {!isIdle && !isComplete && currentInterval && (
-            <Animated.Text
-              entering={FadeIn.duration(300)}
-              exiting={FadeOut.duration(200)}
-              key={currentIntervalIndex}
-              style={[
-                styles.intervalBadge,
-                { color: getIntervalColor(intervalType) },
-              ]}
+          <View style={styles.headerRight}>
+            {!isIdle && !isComplete && currentInterval && (
+              <Animated.Text
+                entering={FadeIn.duration(300)}
+                exiting={FadeOut.duration(200)}
+                key={currentIntervalIndex}
+                style={[
+                  styles.intervalBadge,
+                  { color: getIntervalColor(intervalType) },
+                ]}
+              >
+                {getIntervalLabel(intervalType)}
+              </Animated.Text>
+            )}
+            <Pressable
+              onPress={toggleSound}
+              style={styles.muteBtn}
+              hitSlop={10}
             >
-              {getIntervalLabel(intervalType)}
-            </Animated.Text>
-          )}
+              <Ionicons
+                name={soundEnabled ? "volume-high" : "volume-mute"}
+                size={22}
+                color={soundEnabled ? Colors.textSecondary : Colors.textMuted}
+              />
+            </Pressable>
+          </View>
         </View>
 
         {/* Segmented workout timeline */}
@@ -270,6 +288,14 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_700Bold",
     color: Colors.text,
     letterSpacing: -0.5,
+  },
+  headerRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  muteBtn: {
+    padding: 4,
   },
   intervalBadge: {
     fontSize: 12,

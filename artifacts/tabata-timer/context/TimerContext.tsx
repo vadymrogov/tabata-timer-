@@ -52,6 +52,8 @@ interface TimerContextValue {
   timerState: TimerState;
   currentIntervals: Interval[];
   totalDuration: number;
+  soundEnabled: boolean;
+  toggleSound: () => void;
   start: () => void;
   pause: () => void;
   resume: () => void;
@@ -136,6 +138,7 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
   const [simpleConfig, setSimpleConfigState] = useState<SimpleConfig>(DEFAULT_SIMPLE);
   const [customConfig, setCustomConfigState] = useState<CustomConfig>(DEFAULT_CUSTOM);
   const [timerState, setTimerState] = useState<TimerState>(IDLE_STATE);
+  const [soundEnabled, setSoundEnabled] = useState(true);
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const stateRef = useRef(timerState);
@@ -150,6 +153,17 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
     });
     AsyncStorage.getItem("tabata_mode").then((v) => {
       if (v) setMode(v as TimerMode);
+    });
+    AsyncStorage.getItem("tabata_sound").then((v) => {
+      if (v !== null) setSoundEnabled(v === "1");
+    });
+  }, []);
+
+  const toggleSound = useCallback(() => {
+    setSoundEnabled((prev) => {
+      const next = !prev;
+      AsyncStorage.setItem("tabata_sound", next ? "1" : "0");
+      return next;
     });
   }, []);
 
@@ -292,6 +306,8 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
         timerState,
         currentIntervals,
         totalDuration,
+        soundEnabled,
+        toggleSound,
         start,
         pause,
         resume,

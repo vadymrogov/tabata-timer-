@@ -215,10 +215,12 @@ function PresetCard({
 function SavedCard({
   workout,
   onLoad,
+  onEdit,
   onDelete,
 }: {
   workout: SavedWorkout;
   onLoad: (w: SavedWorkout) => void;
+  onEdit: (w: SavedWorkout) => void;
   onDelete: (id: string) => void;
 }) {
   const date = new Date(workout.createdAt).toLocaleDateString(undefined, {
@@ -256,6 +258,15 @@ function SavedCard({
         </Pressable>
         <Pressable
           onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+            onEdit(workout);
+          }}
+          style={presetStyles.editBtn}
+        >
+          <Feather name="edit-2" size={14} color={Colors.textSecondary} />
+        </Pressable>
+        <Pressable
+          onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
             onDelete(workout.id);
           }}
@@ -271,7 +282,7 @@ function SavedCard({
 export default function SettingsScreen() {
   const insets = useSafeAreaInsets();
   const { mode, setMode, simpleConfig, setSimpleConfig, setCustomConfig, reset } = useTimer();
-  const { presets, savedWorkouts, deleteWorkout } = useWorkouts();
+  const { presets, savedWorkouts, deleteWorkout, setEditingWorkoutId } = useWorkouts();
   const [local, setLocal] = useState<SimpleConfig>(simpleConfig);
   const [toastText, setToastText] = useState("");
   const toastAnim = useRef(new Animated.Value(0)).current;
@@ -350,6 +361,16 @@ export default function SettingsScreen() {
       );
     },
     [deleteWorkout]
+  );
+
+  const handleEditWorkout = useCallback(
+    (w: SavedWorkout) => {
+      if (!w.customConfig) return;
+      setEditingWorkoutId(w.id);
+      setCustomConfig(w.customConfig);
+      router.push("/custom-config");
+    },
+    [setEditingWorkoutId, setCustomConfig]
   );
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
@@ -476,6 +497,7 @@ export default function SettingsScreen() {
                 key={w.id}
                 workout={w}
                 onLoad={loadSavedWorkout}
+                onEdit={handleEditWorkout}
                 onDelete={handleDeleteWorkout}
               />
             ))}
@@ -772,6 +794,14 @@ const presetStyles = StyleSheet.create({
     height: 36,
     borderRadius: 10,
     backgroundColor: Colors.accentMuted,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  editBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: Colors.surface,
     alignItems: "center",
     justifyContent: "center",
   },

@@ -257,7 +257,11 @@ function IntervalCard({
 export default function CustomConfigScreen() {
   const insets = useSafeAreaInsets();
   const { customConfig, setCustomConfig, reset } = useTimer();
-  const { saveWorkout } = useWorkouts();
+  const { saveWorkout, updateWorkout, editingWorkoutId, setEditingWorkoutId, savedWorkouts } = useWorkouts();
+  const editingWorkout = editingWorkoutId
+    ? savedWorkouts.find((w) => w.id === editingWorkoutId) ?? null
+    : null;
+
   const [intervals, setIntervals] = useState<Interval[]>(
     customConfig.intervals
   );
@@ -292,11 +296,20 @@ export default function CustomConfigScreen() {
     setSaving(true);
     const cfg: CustomConfig = { cycles, prepareDuration, intervals };
     try {
-      await saveWorkout(name, cfg);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setSaveModalVisible(false);
-      setWorkoutName("");
-      Alert.alert("Saved!", `"${name}" has been saved to your workouts.`);
+      if (editingWorkout) {
+        await updateWorkout(editingWorkout.id, name, cfg);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        setSaveModalVisible(false);
+        setWorkoutName("");
+        setEditingWorkoutId(null);
+        router.back();
+      } else {
+        await saveWorkout(name, cfg);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        setSaveModalVisible(false);
+        setWorkoutName("");
+        Alert.alert("Saved!", `"${name}" has been saved to your workouts.`);
+      }
     } catch {
       Alert.alert("Error", "Failed to save workout.");
     } finally {
@@ -388,8 +401,12 @@ export default function CustomConfigScreen() {
       >
         <View style={styles.modalOverlay}>
           <View style={styles.modalBox}>
-            <Text style={styles.modalTitle}>Save Workout</Text>
-            <Text style={styles.modalSub}>Give your workout a name</Text>
+            <Text style={styles.modalTitle}>
+              {editingWorkout ? "Update Workout" : "Save Workout"}
+            </Text>
+            <Text style={styles.modalSub}>
+              {editingWorkout ? "Edit the workout name" : "Give your workout a name"}
+            </Text>
             <TextInput
               style={styles.modalInput}
               value={workoutName}
@@ -417,7 +434,7 @@ export default function CustomConfigScreen() {
                 disabled={saving}
               >
                 <Text style={styles.modalSaveText}>
-                  {saving ? "Saving…" : "Save"}
+                  {saving ? "Saving…" : editingWorkout ? "Update" : "Save"}
                 </Text>
               </Pressable>
             </View>
@@ -426,10 +443,18 @@ export default function CustomConfigScreen() {
       </Modal>
 
       <View style={[styles.navHeader, { paddingTop: topPad + 8 }]}>
-        <Pressable onPress={() => router.back()} style={styles.backBtn}>
+        <Pressable
+          onPress={() => {
+            if (editingWorkoutId) setEditingWorkoutId(null);
+            router.back();
+          }}
+          style={styles.backBtn}
+        >
           <Feather name="arrow-left" size={22} color={Colors.text} />
         </Pressable>
-        <Text style={styles.navTitle}>Custom Intervals</Text>
+        <Text style={styles.navTitle}>
+          {editingWorkout ? "Edit Workout" : "Custom Intervals"}
+        </Text>
         <View style={{ width: 40 }} />
       </View>
 
@@ -539,16 +564,21 @@ export default function CustomConfigScreen() {
           </Pressable>
         </View>
 
-        {/* Save Workout Button */}
+        {/* Save / Update Workout Button */}
         <Pressable
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            if (editingWorkout) {
+              setWorkoutName(editingWorkout.name);
+            }
             setSaveModalVisible(true);
           }}
           style={styles.saveWorkoutBtn}
         >
-          <Feather name="bookmark" size={18} color="#fff" />
-          <Text style={styles.saveWorkoutText}>Save Workout</Text>
+          <Feather name={editingWorkout ? "save" : "bookmark"} size={18} color="#fff" />
+          <Text style={styles.saveWorkoutText}>
+            {editingWorkout ? "Update Workout" : "Save Workout"}
+          </Text>
         </Pressable>
 
         <View style={{ height: 40 }} />

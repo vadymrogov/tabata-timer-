@@ -138,13 +138,17 @@ interface WorkoutsContextValue {
   savedWorkouts: SavedWorkout[];
   presets: PresetWorkout[];
   saveWorkout: (name: string, customConfig: CustomConfig) => Promise<SavedWorkout>;
+  updateWorkout: (id: string, name: string, customConfig: CustomConfig) => Promise<void>;
   deleteWorkout: (id: string) => Promise<void>;
+  editingWorkoutId: string | null;
+  setEditingWorkoutId: (id: string | null) => void;
 }
 
 const WorkoutsContext = createContext<WorkoutsContextValue | null>(null);
 
 export function WorkoutsProvider({ children }: { children: React.ReactNode }) {
   const [savedWorkouts, setSavedWorkouts] = useState<SavedWorkout[]>([]);
+  const [editingWorkoutId, setEditingWorkoutId] = useState<string | null>(null);
 
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY).then((raw) => {
@@ -179,6 +183,24 @@ export function WorkoutsProvider({ children }: { children: React.ReactNode }) {
     []
   );
 
+  const updateWorkout = useCallback(
+    async (id: string, name: string, customConfig: CustomConfig): Promise<void> => {
+      const totalSecs =
+        customConfig.prepareDuration +
+        customConfig.intervals.reduce((s, iv) => s + iv.duration, 0) * customConfig.cycles;
+      setSavedWorkouts((prev) => {
+        const next = prev.map((w) =>
+          w.id === id
+            ? { ...w, name, customConfig, estimatedMinutes: Math.round(totalSecs / 60) }
+            : w
+        );
+        AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+        return next;
+      });
+    },
+    []
+  );
+
   const deleteWorkout = useCallback(async (id: string) => {
     setSavedWorkouts((prev) => {
       const next = prev.filter((w) => w.id !== id);
@@ -189,7 +211,15 @@ export function WorkoutsProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <WorkoutsContext.Provider
-      value={{ savedWorkouts, presets: PRESETS, saveWorkout, deleteWorkout }}
+      value={{
+        savedWorkouts,
+        presets: PRESETS,
+        saveWorkout,
+        updateWorkout,
+        deleteWorkout,
+        editingWorkoutId,
+        setEditingWorkoutId,
+      }}
     >
       {children}
     </WorkoutsContext.Provider>
