@@ -88,11 +88,11 @@ function IntervalCard({
 
   return (
     <View style={[styles.card, { borderLeftColor: colors.border }, isActive && styles.cardActive]}>
-      <Pressable
-        onPress={() => setExpanded((e) => !e)}
-        style={styles.cardHeader}
-      >
-        <View style={styles.cardLeft}>
+      <View style={styles.cardHeader}>
+        <Pressable
+          onPress={() => setExpanded((e) => !e)}
+          style={styles.cardLeft}
+        >
           <View style={[styles.indexBadge, { backgroundColor: colors.bg }]}>
             <Text style={[styles.indexText, { color: colors.text }]}>
               {index + 1}
@@ -104,25 +104,32 @@ function IntervalCard({
               {interval.type.toUpperCase()} · {formatDur(interval.duration)}
             </Text>
           </View>
-        </View>
+        </Pressable>
         <View style={styles.cardRight}>
+          <Pressable
+            onPress={() => setExpanded((e) => !e)}
+            hitSlop={8}
+            style={{ padding: 4 }}
+          >
+            <Feather
+              name={expanded ? "chevron-up" : "chevron-down"}
+              size={16}
+              color={Colors.textSecondary}
+            />
+          </Pressable>
           <Pressable
             onLongPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
               drag();
             }}
+            delayLongPress={200}
             style={styles.dragHandle}
             hitSlop={8}
           >
             <Feather name="menu" size={20} color={Colors.textMuted} />
           </Pressable>
-          <Feather
-            name={expanded ? "chevron-up" : "chevron-down"}
-            size={16}
-            color={Colors.textSecondary}
-          />
         </View>
-      </Pressable>
+      </View>
 
       {expanded && (
         <View style={styles.cardBody}>
@@ -239,7 +246,6 @@ export default function CustomConfigScreen() {
   const [intervals, setIntervals] = useState<Interval[]>(
     customConfig.intervals
   );
-  const [cycles, setCycles] = useState(customConfig.cycles);
   const [prepareDuration, setPrepareDuration] = useState(
     customConfig.prepareDuration
   );
@@ -247,9 +253,9 @@ export default function CustomConfigScreen() {
   const [workoutName, setWorkoutName] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const save = (newIntervals: Interval[], newCycles?: number, newPrep?: number) => {
+  const save = (newIntervals: Interval[], newPrep?: number) => {
     const cfg: CustomConfig = {
-      cycles: newCycles ?? cycles,
+      cycles: 1,
       prepareDuration: newPrep ?? prepareDuration,
       intervals: newIntervals,
     };
@@ -268,7 +274,7 @@ export default function CustomConfigScreen() {
       return;
     }
     setSaving(true);
-    const cfg: CustomConfig = { cycles, prepareDuration, intervals };
+    const cfg: CustomConfig = { cycles: 1, prepareDuration, intervals };
     try {
       if (editingWorkout) {
         await updateWorkout(editingWorkout.id, name, cfg);
@@ -329,20 +335,28 @@ export default function CustomConfigScreen() {
 
   const adjustCycles = (delta: number) => {
     Haptics.selectionAsync();
-    const next = Math.max(1, Math.min(99, cycles + delta));
-    setCycles(next);
-    save(intervals, next);
+    if (delta > 0) {
+      const newWork: Interval = {
+        id: genId(),
+        type: "work",
+        label: t("work"),
+        duration: 30,
+      };
+      const newRest: Interval = {
+        id: genId(),
+        type: "rest",
+        label: t("rest"),
+        duration: 10,
+      };
+      const next = [...intervals, newWork, newRest];
+      setIntervals(next);
+      save(next);
+    } else if (delta < 0 && intervals.length >= 1) {
+      const next = intervals.slice(0, Math.max(0, intervals.length - 2));
+      setIntervals(next);
+      save(next);
+    }
   };
-
-  const adjustPrep = (delta: number) => {
-    Haptics.selectionAsync();
-    const next = Math.max(0, Math.min(60, prepareDuration + delta));
-    setPrepareDuration(next);
-    save(intervals, undefined, next);
-  };
-
-  const totalSecs =
-    intervals.reduce((s, iv) => s + iv.duration, 0) * cycles + prepareDuration;
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
@@ -363,113 +377,75 @@ export default function CustomConfigScreen() {
     [updateInterval, deleteInterval]
   );
 
-  const ListHeader = (
-    <View>
-      {/* Cycles */}
-      <View style={styles.section}>
-        <Text style={styles.sectionLabel}>{t("cycles")}</Text>
-        <View style={styles.cycleRow}>
-          <Pressable onPress={() => adjustCycles(-1)} style={styles.cycleBtn}>
-            <Feather name="minus" size={20} color={Colors.text} />
-          </Pressable>
-          <Text style={styles.cycleValue}>{cycles}</Text>
-          <Pressable onPress={() => adjustCycles(1)} style={styles.cycleBtn}>
-            <Feather name="plus" size={20} color={Colors.text} />
-          </Pressable>
-        </View>
-      </View>
+  const pairCount = intervals.filter((iv) => iv.type === "work").length;
+  const totalSecs = intervals.reduce((s, iv) => s + iv.duration, 0) + prepareDuration;
 
-      {/* Prepare */}
-      <View style={styles.section}>
-        <Text style={styles.sectionLabel}>{t("prepareDuration")}</Text>
-        <View style={styles.prepRow}>
-          {[0, 3, 5, 10].map((v) => (
-            <Pressable
-              key={v}
-              onPress={() => {
-                Haptics.selectionAsync();
-                setPrepareDuration(v);
-                save(intervals, undefined, v);
-              }}
-              style={[
-                styles.prepChip,
-                prepareDuration === v && styles.prepChipActive,
-              ]}
-            >
-              <Text
-                style={[
-                  styles.prepChipText,
-                  prepareDuration === v && styles.prepChipTextActive,
-                ]}
-              >
-                {v === 0 ? t("none") : `${v}s`}
-              </Text>
-            </Pressable>
-          ))}
-        </View>
-      </View>
-
-      {/* Total */}
-      <View style={styles.totalBox}>
-        <Feather name="clock" size={14} color={Colors.textMuted} />
-        <Text style={styles.totalText}>
-          {cycles} {cycles === 1 ? t("cycleSuffix") : t("cycleSuffixPlural")} of{" "}
-          {intervals.length} {intervals.length === 1 ? t("intervalSuffix") : t("intervalSuffixPlural")}
-          {" "}= ~{totalSecs < 60 ? `${totalSecs}s` : `${(totalSecs / 60).toFixed(1)}m`}
+  const renderListHeader = useCallback(
+    () => (
+      <View>
+        <Text style={[styles.sectionLabel, { marginBottom: 10, marginTop: 4 }]}>
+          {t("intervals")}
         </Text>
+        {intervals.length === 0 && (
+          <View style={styles.empty}>
+            <MaterialCommunityIcons
+              name="timer-sand-empty"
+              size={36}
+              color={Colors.textMuted}
+            />
+            <Text style={styles.emptyText}>{t("noIntervalsYet")}</Text>
+            <Text style={styles.emptySub}>{t("noIntervalsYetSub")}</Text>
+          </View>
+        )}
       </View>
-
-      {/* Intervals header */}
-      <Text style={[styles.sectionLabel, { marginBottom: 10, marginTop: 4 }]}>{t("intervals")}</Text>
-      {intervals.length === 0 && (
-        <View style={styles.empty}>
-          <MaterialCommunityIcons name="timer-sand-empty" size={36} color={Colors.textMuted} />
-          <Text style={styles.emptyText}>{t("noIntervalsYet")}</Text>
-          <Text style={styles.emptySub}>{t("noIntervalsYetSub")}</Text>
-        </View>
-      )}
-    </View>
+    ),
+    [intervals.length, t]
   );
 
-  const ListFooter = (
-    <View>
-      {/* Add buttons */}
-      <View style={styles.addRow}>
+  const renderListFooter = useCallback(
+    () => (
+      <View>
+        <View style={styles.addRow}>
+          <Pressable
+            onPress={() => addInterval("work")}
+            style={[styles.addBtn, styles.addBtnWork]}
+          >
+            <Feather name="plus" size={16} color={Colors.work} />
+            <Text style={[styles.addBtnText, { color: Colors.work }]}>
+              {t("addWork")}
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={() => addInterval("rest")}
+            style={[styles.addBtn, styles.addBtnRest]}
+          >
+            <Feather name="plus" size={16} color={Colors.rest} />
+            <Text style={[styles.addBtnText, { color: Colors.rest }]}>
+              {t("addRest")}
+            </Text>
+          </Pressable>
+        </View>
         <Pressable
-          onPress={() => addInterval("work")}
-          style={[styles.addBtn, styles.addBtnWork]}
+          onPress={() => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            if (editingWorkout) setWorkoutName(editingWorkout.name);
+            setSaveModalVisible(true);
+          }}
+          style={styles.saveWorkoutBtn}
         >
-          <Feather name="plus" size={16} color={Colors.work} />
-          <Text style={[styles.addBtnText, { color: Colors.work }]}>{t("addWork")}</Text>
+          <Feather
+            name={editingWorkout ? "save" : "bookmark"}
+            size={18}
+            color="#fff"
+          />
+          <Text style={styles.saveWorkoutText}>
+            {editingWorkout ? t("updateWorkout") : t("saveWorkout")}
+          </Text>
         </Pressable>
-        <Pressable
-          onPress={() => addInterval("rest")}
-          style={[styles.addBtn, styles.addBtnRest]}
-        >
-          <Feather name="plus" size={16} color={Colors.rest} />
-          <Text style={[styles.addBtnText, { color: Colors.rest }]}>{t("addRest")}</Text>
-        </Pressable>
+        <View style={{ height: 40 }} />
       </View>
-
-      {/* Save / Update Workout Button */}
-      <Pressable
-        onPress={() => {
-          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          if (editingWorkout) {
-            setWorkoutName(editingWorkout.name);
-          }
-          setSaveModalVisible(true);
-        }}
-        style={styles.saveWorkoutBtn}
-      >
-        <Feather name={editingWorkout ? "save" : "bookmark"} size={18} color="#fff" />
-        <Text style={styles.saveWorkoutText}>
-          {editingWorkout ? t("updateWorkout") : t("saveWorkout")}
-        </Text>
-      </Pressable>
-
-      <View style={{ height: 40 }} />
-    </View>
+    ),
+    [addInterval, editingWorkout, t]
   );
 
   return (
@@ -516,7 +492,11 @@ export default function CustomConfigScreen() {
                 disabled={saving}
               >
                 <Text style={styles.modalSaveText}>
-                  {saving ? t("saving") : editingWorkout ? t("update") : t("save")}
+                  {saving
+                    ? t("saving")
+                    : editingWorkout
+                    ? t("update")
+                    : t("save")}
                 </Text>
               </Pressable>
             </View>
@@ -524,6 +504,7 @@ export default function CustomConfigScreen() {
         </View>
       </Modal>
 
+      {/* Nav header */}
       <View style={[styles.navHeader, { paddingTop: topPad + 8 }]}>
         <Pressable
           onPress={() => {
@@ -540,13 +521,76 @@ export default function CustomConfigScreen() {
         <View style={{ width: 40 }} />
       </View>
 
+      {/* Cycles + Prepare + Total — rendered directly so they always update */}
+      <View style={styles.controlsPanel}>
+        {/* Cycles */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>{t("cycles")}</Text>
+          <View style={styles.cycleRow}>
+            <Pressable
+              onPress={() => adjustCycles(-1)}
+              style={[styles.cycleBtn, pairCount <= 0 && { opacity: 0.4 }]}
+              disabled={pairCount <= 0}
+            >
+              <Feather name="minus" size={20} color={Colors.text} />
+            </Pressable>
+            <Text style={styles.cycleValue}>{pairCount}</Text>
+            <Pressable onPress={() => adjustCycles(1)} style={styles.cycleBtn}>
+              <Feather name="plus" size={20} color={Colors.text} />
+            </Pressable>
+          </View>
+        </View>
+
+        {/* Prepare */}
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>{t("prepareDuration")}</Text>
+          <View style={styles.prepRow}>
+            {[0, 3, 5, 10].map((v) => (
+              <Pressable
+                key={v}
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  setPrepareDuration(v);
+                  save(intervals, v);
+                }}
+                style={[
+                  styles.prepChip,
+                  prepareDuration === v && styles.prepChipActive,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.prepChipText,
+                    prepareDuration === v && styles.prepChipTextActive,
+                  ]}
+                >
+                  {v === 0 ? t("none") : `${v}s`}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+        </View>
+
+        {/* Total */}
+        <View style={styles.totalBox}>
+          <Feather name="clock" size={14} color={Colors.textMuted} />
+          <Text style={styles.totalText}>
+            {pairCount} {pairCount === 1 ? t("cycleSuffix") : t("cycleSuffixPlural")} ·{" "}
+            {intervals.length}{" "}
+            {intervals.length === 1 ? t("intervalSuffix") : t("intervalSuffixPlural")} ·{" "}
+            ~{totalSecs < 60 ? `${totalSecs}s` : `${(totalSecs / 60).toFixed(1)}m`}
+          </Text>
+        </View>
+      </View>
+
+      {/* Interval list */}
       <DraggableFlatList
         data={intervals}
         renderItem={renderIntervalItem}
         keyExtractor={(item) => item.id}
         onDragEnd={onDragEnd}
-        ListHeaderComponent={ListHeader}
-        ListFooterComponent={ListFooter}
+        ListHeaderComponent={renderListHeader}
+        ListFooterComponent={renderListFooter}
         contentContainerStyle={styles.scroll}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
@@ -582,7 +626,13 @@ const styles = StyleSheet.create({
   },
   scroll: {
     paddingHorizontal: 16,
+    paddingTop: 8,
+  },
+  controlsPanel: {
+    paddingHorizontal: 16,
     paddingTop: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
   },
   section: {
     marginBottom: 20,
