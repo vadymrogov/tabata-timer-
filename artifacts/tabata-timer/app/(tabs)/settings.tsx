@@ -347,6 +347,12 @@ export default function SettingsScreen() {
 
   const handleDeleteWorkout = useCallback(
     (id: string) => {
+      if (Platform.OS === "web") {
+        if (window.confirm("Delete workout? This cannot be undone.")) {
+          deleteWorkout(id);
+        }
+        return;
+      }
       Alert.alert(
         "Delete workout?",
         "This cannot be undone.",
