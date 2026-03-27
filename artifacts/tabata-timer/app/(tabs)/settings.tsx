@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { AccountModal } from "@/components/AccountModal";
 import { WheelPicker } from "@/components/WheelPicker";
 import Colors from "@/constants/colors";
 import { useI18n } from "@/context/I18nContext";
@@ -302,6 +303,7 @@ export default function SettingsScreen() {
   const { mode, setMode, simpleConfig, setSimpleConfig, setCustomConfig, reset } = useTimer();
   const { presets, savedWorkouts, deleteWorkout, setEditingWorkoutId } = useWorkouts();
   const [local, setLocal] = useState<SimpleConfig>(simpleConfig);
+  const [accountModalVisible, setAccountModalVisible] = useState(false);
   const [toastText, setToastText] = useState("");
   const toastAnim = useRef(new Animated.Value(0)).current;
   const toastTimer = useRef<ReturnType<typeof setTimeout>>();
@@ -402,6 +404,10 @@ export default function SettingsScreen() {
 
   return (
     <View style={[styles.root, { paddingBottom: bottomPad + 90 }]}>
+      <AccountModal
+        visible={accountModalVisible}
+        onClose={() => setAccountModalVisible(false)}
+      />
       {/* Toast banner */}
       <Animated.View
         style={[
@@ -422,7 +428,16 @@ export default function SettingsScreen() {
         keyboardShouldPersistTaps="handled"
         nestedScrollEnabled
       >
-        <Text style={styles.title}>{t("configure")}</Text>
+        <View style={styles.titleRow}>
+          <Text style={styles.title}>{t("configure")}</Text>
+          <Pressable
+            onPress={() => setAccountModalVisible(true)}
+            hitSlop={12}
+            style={styles.accountBtn}
+          >
+            <Ionicons name="person-circle-outline" size={28} color={Colors.textSecondary} />
+          </Pressable>
+        </View>
 
         <ModeToggle
           mode={mode}
@@ -558,11 +573,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 20,
   },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 20,
+  },
+  accountBtn: {
+    padding: 4,
+  },
   title: {
     fontSize: 28,
     fontFamily: "Inter_700Bold",
     color: Colors.text,
-    marginBottom: 20,
     letterSpacing: -0.5,
   },
   section: {

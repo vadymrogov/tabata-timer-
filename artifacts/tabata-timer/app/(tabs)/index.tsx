@@ -1,7 +1,6 @@
 import * as Haptics from "expo-haptics";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
-  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -21,6 +20,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { Ionicons } from "@expo/vector-icons";
 
+import { AccountModal } from "@/components/AccountModal";
 import { CircularProgress } from "@/components/CircularProgress";
 import { IntervalQueue } from "@/components/IntervalQueue";
 import { StatsBar } from "@/components/StatsBar";
@@ -76,7 +76,7 @@ function CompleteBanner() {
 
 export default function TimerScreen() {
   const insets = useSafeAreaInsets();
-  const { t, language, setLanguage } = useI18n();
+  const { t } = useI18n();
   const [accountModalVisible, setAccountModalVisible] = useState(false);
   const {
     timerState,
@@ -95,7 +95,7 @@ export default function TimerScreen() {
   } = useTimer();
 
   const { play } = useSounds(soundEnabled);
-  const { completedWorkouts, logCompletedWorkout } = useWorkouts();
+  const { logCompletedWorkout } = useWorkouts();
   const [historySaved, setHistorySaved] = useState(false);
 
   const { status, currentIntervalIndex, currentCycle, timeRemaining, totalElapsed } =
@@ -184,86 +184,10 @@ export default function TimerScreen() {
 
   return (
     <View style={[styles.root, { paddingTop: topPad, paddingBottom: bottomPad + 90 }]}>
-      {/* Account / Language Modal */}
-      <Modal
+      <AccountModal
         visible={accountModalVisible}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setAccountModalVisible(false)}
-      >
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setAccountModalVisible(false)}
-        >
-          <Pressable style={styles.accountModal} onPress={() => {}}>
-            <View style={styles.accountModalHeader}>
-              <Ionicons name="person-circle-outline" size={28} color={Colors.text} />
-              <Text style={styles.accountModalTitle}>{t("account")}</Text>
-            </View>
-            <View style={styles.accountDivider} />
-            <Text style={styles.accountSectionLabel}>{t("language")}</Text>
-            <Pressable
-              style={styles.langOption}
-              onPress={() => {
-                setLanguage("en");
-                Haptics.selectionAsync();
-              }}
-            >
-              <Text style={[styles.langOptionText, language === "en" && styles.langOptionActive]}>
-                {t("english")}
-              </Text>
-              {language === "en" && (
-                <Ionicons name="checkmark" size={20} color={Colors.accent} />
-              )}
-            </Pressable>
-            <Pressable
-              style={styles.langOption}
-              onPress={() => {
-                setLanguage("es");
-                Haptics.selectionAsync();
-              }}
-            >
-              <Text style={[styles.langOptionText, language === "es" && styles.langOptionActive]}>
-                {t("spanish")}
-              </Text>
-              {language === "es" && (
-                <Ionicons name="checkmark" size={20} color={Colors.accent} />
-              )}
-            </Pressable>
-            <View style={styles.accountDivider} />
-            <Text style={styles.accountSectionLabel}>{t("completedRoutines")}</Text>
-            {completedWorkouts.length === 0 ? (
-              <Text style={styles.historyEmpty}>{t("historyEmpty")}</Text>
-            ) : (
-              <ScrollView style={styles.historyList} showsVerticalScrollIndicator={false}>
-                {completedWorkouts.slice(0, 30).map((w) => {
-                  const date = new Date(w.completedAt).toLocaleDateString(undefined, {
-                    month: "short", day: "numeric",
-                  });
-                  const mins = Math.round(w.durationSeconds / 60);
-                  return (
-                    <View key={w.id} style={styles.historyRow}>
-                      <View style={[styles.historyDot, { backgroundColor: w.mode === "simple" ? Colors.work : Colors.rest }]} />
-                      <View style={styles.historyInfo}>
-                        <Text style={styles.historyMeta}>
-                          {w.rounds} {t("historyRounds")} · {mins}m
-                        </Text>
-                        <Text style={styles.historyDate}>{date}</Text>
-                      </View>
-                    </View>
-                  );
-                })}
-              </ScrollView>
-            )}
-            <Pressable
-              style={styles.accountCloseBtn}
-              onPress={() => setAccountModalVisible(false)}
-            >
-              <Text style={styles.accountCloseBtnText}>{t("cancel")}</Text>
-            </Pressable>
-          </Pressable>
-        </Pressable>
-      </Modal>
+        onClose={() => setAccountModalVisible(false)}
+      />
 
       <ScrollView
         contentContainerStyle={styles.scroll}
@@ -435,77 +359,6 @@ const styles = StyleSheet.create({
   muteBtn: {
     padding: 4,
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.65)",
-    justifyContent: "center",
-    alignItems: "center",
-    paddingHorizontal: 32,
-  },
-  accountModal: {
-    width: "100%",
-    backgroundColor: "#1C1C1E",
-    borderRadius: 20,
-    paddingVertical: 24,
-    paddingHorizontal: 24,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.08)",
-  },
-  accountModalHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    marginBottom: 16,
-  },
-  accountModalTitle: {
-    fontSize: 20,
-    fontFamily: "Inter_700Bold",
-    color: Colors.text,
-  },
-  accountDivider: {
-    height: 1,
-    backgroundColor: "rgba(255,255,255,0.08)",
-    marginBottom: 16,
-  },
-  accountSectionLabel: {
-    fontSize: 11,
-    fontFamily: "Inter_600SemiBold",
-    color: Colors.textMuted,
-    letterSpacing: 1.2,
-    textTransform: "uppercase",
-    marginBottom: 8,
-  },
-  langOption: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 14,
-    paddingHorizontal: 16,
-    borderRadius: 12,
-    backgroundColor: "rgba(255,255,255,0.04)",
-    marginBottom: 8,
-  },
-  langOptionText: {
-    fontSize: 16,
-    fontFamily: "Inter_500Medium",
-    color: Colors.textSecondary,
-  },
-  langOptionActive: {
-    color: Colors.text,
-    fontFamily: "Inter_600SemiBold",
-  },
-  accountCloseBtn: {
-    marginTop: 8,
-    paddingVertical: 14,
-    borderRadius: 12,
-    backgroundColor: "rgba(255,255,255,0.06)",
-    alignItems: "center",
-  },
-  accountCloseBtnText: {
-    fontSize: 15,
-    fontFamily: "Inter_600SemiBold",
-    color: Colors.textSecondary,
-  },
   intervalBadge: {
     fontSize: 12,
     fontFamily: "Inter_700Bold",
@@ -604,45 +457,5 @@ const styles = StyleSheet.create({
     fontFamily: "Inter_600SemiBold",
     color: Colors.rest,
     letterSpacing: 0.2,
-  },
-  historyList: {
-    maxHeight: 160,
-    marginBottom: 12,
-  },
-  historyRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 8,
-    gap: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(255,255,255,0.05)",
-  },
-  historyDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  historyInfo: {
-    flex: 1,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  historyMeta: {
-    fontSize: 14,
-    fontFamily: "Inter_500Medium",
-    color: Colors.text,
-  },
-  historyDate: {
-    fontSize: 12,
-    fontFamily: "Inter_400Regular",
-    color: Colors.textMuted,
-  },
-  historyEmpty: {
-    fontSize: 13,
-    fontFamily: "Inter_400Regular",
-    color: Colors.textMuted,
-    marginBottom: 14,
-    fontStyle: "italic",
   },
 });
