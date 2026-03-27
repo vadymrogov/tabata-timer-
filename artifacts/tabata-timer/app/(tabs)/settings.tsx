@@ -532,14 +532,16 @@ export default function SettingsScreen() {
           </View>
         )}
 
-        {/* ─── Presets ─── */}
-        <View style={styles.workoutsSection}>
-          <Text style={styles.sectionHeader}>{t("workoutPresets")}</Text>
-          <Text style={styles.sectionSub}>{t("presetsSubtitle")}</Text>
-          {presets.map((p) => (
-            <PresetCard key={p.id} preset={p} onLoad={loadPreset} />
-          ))}
-        </View>
+        {/* ─── Presets — Simple mode only ─── */}
+        {mode === "simple" && (
+          <View style={styles.workoutsSection}>
+            <Text style={styles.sectionHeader}>{t("workoutPresets")}</Text>
+            <Text style={styles.sectionSub}>{t("presetsSubtitle")}</Text>
+            {presets.map((p) => (
+              <PresetCard key={p.id} preset={p} onLoad={loadPreset} />
+            ))}
+          </View>
+        )}
 
         <View style={{ height: 20 }} />
       </ScrollView>

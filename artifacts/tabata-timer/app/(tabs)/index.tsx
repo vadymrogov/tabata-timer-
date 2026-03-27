@@ -1,5 +1,5 @@
 import * as Haptics from "expo-haptics";
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   Modal,
   Platform,
@@ -29,6 +29,7 @@ import { WorkoutTimeline } from "@/components/WorkoutTimeline";
 import Colors from "@/constants/colors";
 import { useI18n } from "@/context/I18nContext";
 import { useTimer } from "@/context/TimerContext";
+import { useWorkouts } from "@/context/WorkoutsContext";
 import { useSounds } from "@/hooks/useSounds";
 
 function getIntervalLabel(type: string, t: (k: string) => string) {
@@ -94,6 +95,8 @@ export default function TimerScreen() {
   } = useTimer();
 
   const { play } = useSounds(soundEnabled);
+  const { completedWorkouts, logCompletedWorkout } = useWorkouts();
+  const [historySaved, setHistorySaved] = useState(false);
 
   const { status, currentIntervalIndex, currentCycle, timeRemaining, totalElapsed } =
     timerState;
@@ -161,6 +164,21 @@ export default function TimerScreen() {
     prevStatusRef.current = status;
   }, [status]);
 
+  // Reset save flag when workout resets to idle
+  useEffect(() => {
+    if (status === "idle") setHistorySaved(false);
+  }, [status]);
+
+  const handleSaveHistory = useCallback(async () => {
+    await logCompletedWorkout({
+      durationSeconds: totalDuration,
+      rounds: totalCycles,
+      mode,
+    });
+    setHistorySaved(true);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }, [logCompletedWorkout, totalDuration, totalCycles, mode]);
+
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 34 : insets.bottom;
 
@@ -212,6 +230,31 @@ export default function TimerScreen() {
                 <Ionicons name="checkmark" size={20} color={Colors.accent} />
               )}
             </Pressable>
+            <View style={styles.accountDivider} />
+            <Text style={styles.accountSectionLabel}>{t("completedRoutines")}</Text>
+            {completedWorkouts.length === 0 ? (
+              <Text style={styles.historyEmpty}>{t("historyEmpty")}</Text>
+            ) : (
+              <ScrollView style={styles.historyList} showsVerticalScrollIndicator={false}>
+                {completedWorkouts.slice(0, 30).map((w) => {
+                  const date = new Date(w.completedAt).toLocaleDateString(undefined, {
+                    month: "short", day: "numeric",
+                  });
+                  const mins = Math.round(w.durationSeconds / 60);
+                  return (
+                    <View key={w.id} style={styles.historyRow}>
+                      <View style={[styles.historyDot, { backgroundColor: w.mode === "simple" ? Colors.work : Colors.rest }]} />
+                      <View style={styles.historyInfo}>
+                        <Text style={styles.historyMeta}>
+                          {w.rounds} {t("historyRounds")} · {mins}m
+                        </Text>
+                        <Text style={styles.historyDate}>{date}</Text>
+                      </View>
+                    </View>
+                  );
+                })}
+              </ScrollView>
+            )}
             <Pressable
               style={styles.accountCloseBtn}
               onPress={() => setAccountModalVisible(false)}
@@ -306,6 +349,20 @@ export default function TimerScreen() {
             />
           )}
         </View>
+
+        {/* Save to History (complete state) */}
+        {isComplete && (
+          <View style={styles.saveHistoryWrap}>
+            {historySaved ? (
+              <Text style={styles.savedToHistoryText}>{t("savedToHistory")}</Text>
+            ) : (
+              <Pressable style={styles.saveHistoryBtn} onPress={handleSaveHistory}>
+                <Ionicons name="bookmark-outline" size={16} color={Colors.background} />
+                <Text style={styles.saveHistoryBtnText}>{t("saveToHistory")}</Text>
+              </Pressable>
+            )}
+          </View>
+        )}
 
         {/* Stats */}
         <View style={styles.statsWrap}>
@@ -522,5 +579,70 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     textAlign: "center",
     marginTop: 4,
+  },
+  saveHistoryWrap: {
+    alignItems: "center",
+    marginBottom: 10,
+    marginTop: -10,
+  },
+  saveHistoryBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: Colors.accent,
+    paddingHorizontal: 22,
+    paddingVertical: 11,
+    borderRadius: 24,
+  },
+  saveHistoryBtnText: {
+    fontSize: 14,
+    fontFamily: "Inter_600SemiBold",
+    color: Colors.background,
+  },
+  savedToHistoryText: {
+    fontSize: 13,
+    fontFamily: "Inter_600SemiBold",
+    color: Colors.rest,
+    letterSpacing: 0.2,
+  },
+  historyList: {
+    maxHeight: 160,
+    marginBottom: 12,
+  },
+  historyRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 8,
+    gap: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255,255,255,0.05)",
+  },
+  historyDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  historyInfo: {
+    flex: 1,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+  historyMeta: {
+    fontSize: 14,
+    fontFamily: "Inter_500Medium",
+    color: Colors.text,
+  },
+  historyDate: {
+    fontSize: 12,
+    fontFamily: "Inter_400Regular",
+    color: Colors.textMuted,
+  },
+  historyEmpty: {
+    fontSize: 13,
+    fontFamily: "Inter_400Regular",
+    color: Colors.textMuted,
+    marginBottom: 14,
+    fontStyle: "italic",
   },
 });

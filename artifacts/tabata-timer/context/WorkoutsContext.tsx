@@ -11,6 +11,14 @@ import { CustomConfig, SimpleConfig } from "@/context/TimerContext";
 
 export type WorkoutType = "simple" | "custom";
 
+export interface CompletedWorkout {
+  id: string;
+  completedAt: number;
+  durationSeconds: number;
+  rounds: number;
+  mode: WorkoutType;
+}
+
 export interface SavedWorkout {
   id: string;
   name: string;
@@ -133,6 +141,7 @@ export const PRESETS: PresetWorkout[] = [
 ];
 
 const STORAGE_KEY = "tabata_saved_workouts";
+const HISTORY_KEY = "tabata_completed_workouts";
 
 interface WorkoutsContextValue {
   savedWorkouts: SavedWorkout[];
@@ -142,6 +151,8 @@ interface WorkoutsContextValue {
   deleteWorkout: (id: string) => Promise<void>;
   editingWorkoutId: string | null;
   setEditingWorkoutId: (id: string | null) => void;
+  completedWorkouts: CompletedWorkout[];
+  logCompletedWorkout: (entry: Omit<CompletedWorkout, "id" | "completedAt">) => Promise<void>;
 }
 
 const WorkoutsContext = createContext<WorkoutsContextValue | null>(null);
@@ -149,13 +160,17 @@ const WorkoutsContext = createContext<WorkoutsContextValue | null>(null);
 export function WorkoutsProvider({ children }: { children: React.ReactNode }) {
   const [savedWorkouts, setSavedWorkouts] = useState<SavedWorkout[]>([]);
   const [editingWorkoutId, setEditingWorkoutId] = useState<string | null>(null);
+  const [completedWorkouts, setCompletedWorkouts] = useState<CompletedWorkout[]>([]);
 
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY).then((raw) => {
       if (raw) {
-        try {
-          setSavedWorkouts(JSON.parse(raw));
-        } catch {}
+        try { setSavedWorkouts(JSON.parse(raw)); } catch {}
+      }
+    });
+    AsyncStorage.getItem(HISTORY_KEY).then((raw) => {
+      if (raw) {
+        try { setCompletedWorkouts(JSON.parse(raw)); } catch {}
       }
     });
   }, []);
@@ -209,6 +224,22 @@ export function WorkoutsProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  const logCompletedWorkout = useCallback(
+    async (entry: Omit<CompletedWorkout, "id" | "completedAt">) => {
+      const record: CompletedWorkout = {
+        ...entry,
+        id: Date.now().toString() + Math.random().toString(36).substr(2, 6),
+        completedAt: Date.now(),
+      };
+      setCompletedWorkouts((prev) => {
+        const next = [record, ...prev].slice(0, 100);
+        AsyncStorage.setItem(HISTORY_KEY, JSON.stringify(next));
+        return next;
+      });
+    },
+    []
+  );
+
   return (
     <WorkoutsContext.Provider
       value={{
@@ -219,6 +250,8 @@ export function WorkoutsProvider({ children }: { children: React.ReactNode }) {
         deleteWorkout,
         editingWorkoutId,
         setEditingWorkoutId,
+        completedWorkouts,
+        logCompletedWorkout,
       }}
     >
       {children}
