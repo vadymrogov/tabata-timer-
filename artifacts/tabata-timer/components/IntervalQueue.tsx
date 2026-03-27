@@ -1,5 +1,5 @@
-import React from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import React, { useEffect, useRef } from "react";
+import { LayoutChangeEvent, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import Colors from "@/constants/colors";
 import { useI18n } from "@/context/I18nContext";
@@ -12,12 +12,9 @@ interface Props {
 
 function getColor(type: IntervalType) {
   switch (type) {
-    case "work":
-      return Colors.work;
-    case "rest":
-      return Colors.rest;
-    case "prepare":
-      return Colors.prepare;
+    case "work":    return Colors.work;
+    case "rest":    return Colors.rest;
+    case "prepare": return Colors.prepare;
   }
 }
 
@@ -41,15 +38,18 @@ function IntervalPill({
   interval,
   active,
   done,
+  onLayout,
 }: {
   interval: Interval;
   active: boolean;
   done: boolean;
+  onLayout?: (e: LayoutChangeEvent) => void;
 }) {
   const color = getColor(interval.type);
   const label = useDisplayLabel(interval);
   return (
     <View
+      onLayout={onLayout}
       style={[
         styles.pill,
         active && { borderColor: color, backgroundColor: `${color}22` },
@@ -75,12 +75,27 @@ function IntervalPill({
 }
 
 export function IntervalQueue({ intervals, currentIndex }: Props) {
+  const scrollRef = useRef<ScrollView>(null);
+  const pillLayouts = useRef<{ x: number; width: number }[]>([]);
+  const viewWidth = useRef(0);
   const visible = intervals.slice(0, 20);
+
+  useEffect(() => {
+    if (currentIndex < 0 || currentIndex >= visible.length) return;
+    const pill = pillLayouts.current[currentIndex];
+    if (!pill || viewWidth.current === 0) return;
+    const centerOffset = pill.x + pill.width / 2 - viewWidth.current / 2;
+    scrollRef.current?.scrollTo({ x: Math.max(0, centerOffset), animated: true });
+  }, [currentIndex]);
+
   return (
     <ScrollView
+      ref={scrollRef}
       horizontal
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={styles.row}
+      onLayout={(e) => { viewWidth.current = e.nativeEvent.layout.width; }}
+      scrollEventThrottle={16}
     >
       {visible.map((iv, idx) => (
         <IntervalPill
@@ -88,6 +103,10 @@ export function IntervalQueue({ intervals, currentIndex }: Props) {
           interval={iv}
           active={idx === currentIndex}
           done={idx < currentIndex}
+          onLayout={(e) => {
+            const { x, width } = e.nativeEvent.layout;
+            pillLayouts.current[idx] = { x, width };
+          }}
         />
       ))}
     </ScrollView>
