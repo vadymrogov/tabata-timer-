@@ -253,7 +253,7 @@ export default function CustomConfigScreen() {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         setSaveModalVisible(false);
         setWorkoutName("");
-        Alert.alert(t("savedBang"), t("savedMsg", { name }));
+        router.back();
       }
     } catch { Alert.alert(t("error"), t("errorMsg")); }
     finally { setSaving(false); }

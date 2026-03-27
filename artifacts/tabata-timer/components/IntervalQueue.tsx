@@ -78,10 +78,9 @@ export function IntervalQueue({ intervals, currentIndex }: Props) {
   const scrollRef = useRef<ScrollView>(null);
   const pillLayouts = useRef<{ x: number; width: number }[]>([]);
   const viewWidth = useRef(0);
-  const visible = intervals.slice(0, 20);
 
   useEffect(() => {
-    if (currentIndex < 0 || currentIndex >= visible.length) return;
+    if (currentIndex < 0 || currentIndex >= intervals.length) return;
     const pill = pillLayouts.current[currentIndex];
     if (!pill || viewWidth.current === 0) return;
     const centerOffset = pill.x + pill.width / 2 - viewWidth.current / 2;
@@ -97,7 +96,7 @@ export function IntervalQueue({ intervals, currentIndex }: Props) {
       onLayout={(e) => { viewWidth.current = e.nativeEvent.layout.width; }}
       scrollEventThrottle={16}
     >
-      {visible.map((iv, idx) => (
+      {intervals.map((iv, idx) => (
         <IntervalPill
           key={`${iv.id}-${idx}`}
           interval={iv}
