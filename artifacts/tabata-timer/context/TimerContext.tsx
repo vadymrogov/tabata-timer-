@@ -205,18 +205,23 @@ export function TimerProvider({ children }: { children: React.ReactNode }) {
           status: "complete",
           currentIntervalIndex: intervals.length - 1,
           timeRemaining: 0,
+          totalElapsed: intervals.reduce((s, iv) => s + iv.duration, 0),
         };
       }
       const nextIv = intervals[next];
       const cycleIdx = intervals
         .slice(0, next + 1)
         .filter((iv) => iv.type === "work").length;
+      const cumulativeElapsed = intervals
+        .slice(0, next)
+        .reduce((s, iv) => s + iv.duration, 0);
       return {
         ...state,
         status: "running",
         currentIntervalIndex: next,
         currentCycle: cycleIdx,
         timeRemaining: nextIv.duration,
+        totalElapsed: cumulativeElapsed,
       };
     },
     []

@@ -2,6 +2,7 @@ import React from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 
 import Colors from "@/constants/colors";
+import { useI18n } from "@/context/I18nContext";
 import { Interval, IntervalType } from "@/context/TimerContext";
 
 interface Props {
@@ -25,6 +26,17 @@ function formatDur(s: number) {
   return `${Math.floor(s / 60)}m${s % 60 > 0 ? ` ${s % 60}s` : ""}`;
 }
 
+const GENERIC_WORK_LABELS = ["Work", "Trabajo", "Travail", "Arbeit"];
+const GENERIC_REST_LABELS = ["Rest", "Descanso", "Repos", "Ruhe"];
+
+function useDisplayLabel(interval: Interval): string {
+  const { t } = useI18n();
+  if (interval.type === "prepare") return t("getReady");
+  if (interval.type === "work" && GENERIC_WORK_LABELS.includes(interval.label)) return t("work");
+  if (interval.type === "rest" && GENERIC_REST_LABELS.includes(interval.label)) return t("rest");
+  return interval.label;
+}
+
 function IntervalPill({
   interval,
   active,
@@ -35,6 +47,7 @@ function IntervalPill({
   done: boolean;
 }) {
   const color = getColor(interval.type);
+  const label = useDisplayLabel(interval);
   return (
     <View
       style={[
@@ -52,7 +65,7 @@ function IntervalPill({
         ]}
         numberOfLines={1}
       >
-        {interval.label}
+        {label}
       </Text>
       <Text style={[styles.pillDur, done && styles.pillLabelDone]}>
         {formatDur(interval.duration)}

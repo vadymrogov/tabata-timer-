@@ -183,6 +183,14 @@ function SummaryCard({ config }: { config: SimpleConfig }) {
   );
 }
 
+function presetTranslationKey(id: string, suffix: "Name" | "Desc"): string {
+  const base = id
+    .replace(/^preset-/, "")
+    .replace(/-([a-z0-9])/g, (_, c) => c.toUpperCase());
+  const capitalized = base.charAt(0).toUpperCase() + base.slice(1);
+  return `preset${capitalized}${suffix}`;
+}
+
 function PresetCard({
   preset,
   onLoad,
@@ -191,6 +199,10 @@ function PresetCard({
   onLoad: (p: PresetWorkout) => void;
 }) {
   const { t } = useI18n();
+  const nameKey = presetTranslationKey(preset.id, "Name");
+  const descKey = presetTranslationKey(preset.id, "Desc");
+  const name = t(nameKey) !== nameKey ? t(nameKey) : preset.name;
+  const desc = t(descKey) !== descKey ? t(descKey) : preset.description;
   return (
     <Pressable
       onPress={() => {
@@ -203,8 +215,8 @@ function PresetCard({
         <Text style={presetStyles.tagText}>{preset.tag}</Text>
       </View>
       <View style={presetStyles.info}>
-        <Text style={presetStyles.name}>{preset.name}</Text>
-        <Text style={presetStyles.desc}>{preset.description}</Text>
+        <Text style={presetStyles.name}>{name}</Text>
+        <Text style={presetStyles.desc}>{desc}</Text>
         {preset.simpleConfig && (
           <Text style={presetStyles.meta}>
             {preset.simpleConfig.workDuration}s {t("work").toLowerCase()} · {preset.simpleConfig.restDuration}s {t("rest").toLowerCase()} · {preset.simpleConfig.cycles} {t("cycleSuffixPlural")}
